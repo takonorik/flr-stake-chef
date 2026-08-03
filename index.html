@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flare Stake Chef</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Space+Mono:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--flare:#E62058;--flare-dim:#c01a48;--flare2:#E46389;--flare-glow:rgba(230,32,88,0.18);--bg:#f5f5f7;--surface:#ffffff;--surface2:#f0f0f3;--border:rgba(0,0,0,0.09);--text:#1a1a2e;--muted:#8a8a9a;--green:#22c55e;--yellow:#eab308;--red:#ef4444}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 40% at 90% 5%,rgba(230,32,88,.07) 0%,transparent 50%),radial-gradient(ellipse 40% 30% at 5% 90%,rgba(228,99,137,.05) 0%,transparent 50%);pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:32px 16px 80px}
+header{display:flex;align-items:center;gap:14px;margin-bottom:36px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.logo-svg{flex-shrink:0}
+h1{font-family:'Outfit',sans-serif;font-size:1.25rem;font-weight:700;letter-spacing:-.01em;line-height:1.2;color:var(--flare)}
+h1 .sep{color:var(--border);font-weight:400;margin:0 2px}
+h1 .chef{color:var(--text)}
+.sub{font-size:.75rem;color:var(--muted);font-weight:400;letter-spacing:.01em;margin-top:2px}
+.sub strong{color:var(--text);font-weight:600}
+.accent{color:var(--flare)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;position:relative;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.07)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--flare),var(--flare2),transparent);opacity:.7}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:540px){.grid2{grid-template-columns:1fr} h1{font-size:1.1rem}}
+label{display:block;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-family:'Space Mono',monospace}
+.iw{position:relative}
+.iw input,.iw select{width:100%;background:#f8f8fb;border:1px solid var(--border);border-radius:8px;padding:11px 48px 11px 14px;color:var(--text);font-family:'Space Mono',monospace;font-size:.9rem;outline:none;transition:border-color .2s;appearance:none}
+.iw input:focus,.iw select:focus{border-color:var(--flare);box-shadow:0 0 0 3px var(--flare-glow)}
+.unit{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-family:'Space Mono',monospace;font-size:.72rem;color:var(--flare);pointer-events:none}
+select option{background:#ffffff}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.chip{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:#f0f0f4;cursor:pointer;font-size:.72rem;color:var(--muted);transition:all .15s;user-select:none}
+.chip.on{border-color:var(--flare);color:var(--flare);background:rgba(230,32,88,.12)}
+.chip .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.btn{width:100%;padding:13px;background:var(--flare);color:#fff;border:none;border-radius:8px;font-family:'Space Mono',monospace;font-size:.88rem;font-weight:700;letter-spacing:.04em;cursor:pointer;transition:background .2s,transform .1s}
+.btn:hover{background:var(--flare-dim)}
+.btn:active{transform:scale(.99)}
+#results{display:none}
+#results.on{display:block}
+.rh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.rt{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.rc{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--flare)}
+.summary{background:var(--surface);border:1px solid rgba(230,32,88,.15);border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:.82rem;line-height:1.7;color:var(--muted)}
+.summary::before{content:'RESULT';display:block;font-family:'Space Mono',monospace;font-size:.62rem;color:var(--flare);letter-spacing:.1em;margin-bottom:6px}
+.vlist{display:flex;flex-direction:column;gap:12px}
+
+/* card */
+.vc{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;animation:cin .35s ease both}
+@keyframes cin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.vc.best{border-color:rgba(230,32,88,.4);box-shadow:0 2px 16px rgba(230,32,88,.1)}
+.vc-header{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:14px 16px}
+.vc.best .vc-header{background:linear-gradient(135deg,rgba(232,82,26,.06),transparent)}
+.rb{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0}
+.ventity{font-size:.68rem;color:var(--muted);font-family:'Space Mono',monospace}
+.vname{font-weight:600;font-size:.92rem;margin-bottom:1px}
+.tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.tag{font-size:.6rem;padding:2px 6px;border-radius:3px;font-family:'Space Mono',monospace}
+.tg{background:rgba(34,197,94,.12);color:var(--green)}
+.tr{background:rgba(239,68,68,.12);color:var(--red)}
+.tb{background:rgba(59,130,246,.12);color:#60a5fa}
+.to{background:rgba(232,82,26,.15);color:var(--flare)}
+.vstats{text-align:right;flex-shrink:0}
+.apr{font-family:'Space Mono',monospace;font-size:1.05rem;font-weight:700;color:var(--green)}
+.apr-lbl{font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted)}
+.st{font-family:'Space Mono',monospace;font-size:.63rem;margin-top:2px;color:var(--muted)}
+.ug{color:var(--green)} .uw{color:var(--yellow)} .ub{color:var(--red)}
+
+/* Node ID block */
+.node-block{margin:0 12px 12px;background:rgba(230,32,88,.04);border:1px solid rgba(230,32,88,.25);border-radius:8px;overflow:hidden}
+.node-block-label{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--flare);letter-spacing:.1em;text-transform:uppercase;padding:8px 12px 4px;border-bottom:1px solid rgba(230,32,88,.15)}
+.node-id-row{display:flex;align-items:center;gap:8px;padding:10px 12px}
+.node-id-text{
+  font-family:'Space Mono',monospace;
+  font-size:.82rem;
+  font-weight:700;
+  color:#1a1a2e;
+  background:rgba(230,32,88,.07);
+  border:1.5px solid rgba(230,32,88,.3);
+  border-radius:6px;
+  padding:8px 12px;
+  flex:1;
+  letter-spacing:.06em;
+  cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.node-id-text:hover{background:rgba(230,32,88,.12);border-color:rgba(230,32,88,.55)}
+.copy-btn{
+  flex-shrink:0;
+  padding:8px 14px;
+  background:var(--flare);
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  font-family:'Space Mono',monospace;
+  font-size:.72rem;
+  font-weight:700;
+  cursor:pointer;
+  transition:background .15s,transform .1s;
+  white-space:nowrap;
+}
+.copy-btn:hover{background:var(--flare-dim)}
+.copy-btn:active{transform:scale(.97)}
+.copy-btn.ok{background:#16a34a}
+.node-meta{padding:0 12px 10px;font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted);display:flex;gap:12px}
+
+.cal-display{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;cursor:pointer;transition:border-color .2s;font-family:'Noto Sans JP',sans-serif;font-size:.88rem;color:var(--text)}
+.cal-display:hover{border-color:var(--flare)}
+.cal-icon{font-size:1rem;flex-shrink:0}
+.cal-popup{background:var(--surface);border:1px solid rgba(230,32,88,.2);border-radius:10px;padding:16px;margin-bottom:16px;display:none}
+.cal-popup.open{display:block}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-nav-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:1.1rem;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s}
+.cal-nav-btn:hover{border-color:var(--flare);color:var(--flare)}
+.cal-month-lbl{font-family:'Noto Sans JP',sans-serif;font-size:.85rem;font-weight:500;color:var(--text)}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:6px}
+.cal-dow span{font-family:'Noto Sans JP',sans-serif;font-size:.65rem;color:var(--muted);padding:4px 0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-day{height:34px;border-radius:6px;border:none;background:transparent;color:var(--text);font-family:'Space Mono',monospace;font-size:.75rem;cursor:pointer;transition:background .15s,color .15s;display:flex;align-items:center;justify-content:center}
+.cal-day:hover:not(.disabled):not(.empty){background:var(--flare-glow);color:var(--flare)}
+.cal-day.selected{background:var(--flare);color:#fff;font-weight:700}
+.cal-day.today{border:1px solid rgba(232,82,26,.4)}
+.cal-day.disabled{color:var(--muted);cursor:not-allowed;opacity:.35}
+.cal-day.empty{cursor:default}
+.cal-hint{font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:10px;text-align:center}
+.selected-duration{font-family:'Space Mono',monospace;font-size:.7rem;color:var(--flare);margin-top:6px;text-align:center;min-height:1.2em}
+.condition-box{background:#fdf0f3;border:1px solid rgba(230,32,88,.15);border-radius:8px;padding:12px 16px;margin-bottom:16px}
+.cond-title{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'Space Mono',monospace;margin-bottom:6px}
+.cond-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.cond-list li{font-size:.78rem;color:#555;padding-left:14px;position:relative}
+.cond-list li::before{content:"✓";position:absolute;left:0;color:var(--flare);font-size:.72rem}
+.label-hint{font-size:.62rem;letter-spacing:.02em;text-transform:none;color:var(--muted);font-weight:400;margin-left:4px}
+.data-note{font-size:.62rem;color:var(--muted);text-align:center;margin-top:12px}
+.data-note a{color:var(--muted);text-decoration:none;border-bottom:1px dotted var(--muted)}
+.none-msg{color:var(--muted);font-size:.83rem;padding:20px 0;text-align:center}
+.fn{margin-top:24px;font-size:.68rem;color:var(--muted);text-align:center;line-height:1.8}
+.credit{font-size:.72rem;color:var(--muted);text-align:center;margin-top:14px;line-height:1.6}
+.credit a{color:var(--flare);text-decoration:none;font-weight:500;border-bottom:1px dotted rgba(230,32,88,.4);transition:border-color .2s}
+.credit a:hover{border-bottom-color:var(--flare)}
+.fn a{color:var(--flare);text-decoration:none}
+.more-btn{width:100%;padding:13px;background:var(--surface);color:var(--flare);border:2px solid rgba(230,32,88,.25);border-radius:8px;font-family:'Space Mono',monospace;font-size:.82rem;font-weight:700;letter-spacing:.04em;cursor:pointer;transition:all .2s;margin-top:12px}
+.more-btn:hover{background:rgba(230,32,88,.06);border-color:var(--flare)}
+.more-btn:active{transform:scale(.99)}
+.lang-toggle{display:flex;align-items:center;gap:0;margin-left:auto;border:1.5px solid var(--border);border-radius:20px;overflow:hidden;font-family:'Space Mono',monospace;font-size:.68rem;font-weight:700;cursor:pointer;user-select:none;flex-shrink:0}
+.lang-toggle span{padding:5px 10px;transition:all .2s;color:var(--muted)}
+.lang-toggle span.active{background:var(--flare);color:#fff}
+.disclaimer{text-align:center;margin-top:10px}
+.disc-toggle{background:none;border:none;font-size:.68rem;color:var(--muted);cursor:pointer;padding:4px 8px;font-family:'Noto Sans JP',sans-serif;transition:color .2s}
+.disc-toggle:hover{color:var(--flare)}
+.disc-toggle .disc-arrow{display:inline-block;transition:transform .25s;margin-right:4px;font-size:.6rem}
+.disc-toggle.open .disc-arrow{transform:rotate(90deg)}
+.disc-body{max-height:0;overflow:hidden;transition:max-height .35s ease,opacity .3s ease;opacity:0}
+.disc-body.open{max-height:400px;opacity:1}
+.disc-inner{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:8px;text-align:left}
+.disc-inner ul{list-style:none;display:flex;flex-direction:column;gap:6px}
+.disc-inner li{font-size:.7rem;color:var(--muted);line-height:1.6;padding-left:16px;position:relative}
+.disc-inner li::before{content:"⚠";position:absolute;left:0;font-size:.65rem}
+.disc-inner li.disc-contact::before{content:"📩"}
+.disc-inner a{color:var(--flare);text-decoration:none;font-weight:500}
+.disc-inner a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo-svg">
+        <svg fill="none" height="28" viewBox="0 0 23 22" width="28" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16.8772 8.07569L6.22385 8.06738C3.31904 8.06738 0.904317 10.3584 0.828188 13.303C0.825809 13.3813 0.891232 13.4466 0.969741 13.4466L11.6231 13.4537C14.5279 13.4549 16.9426 11.1639 17.0187 8.22043C17.0211 8.14213 16.9557 8.07687 16.8772 8.07687V8.07569Z" fill="#E62058"/>
+          <path d="M22.2776 0.00830489L6.22384 0C3.31904 0 0.904317 2.29097 0.828188 5.23566C0.825809 5.31396 0.891232 5.37922 0.969741 5.37922L17.0235 5.38634C19.9283 5.38752 22.343 3.09655 22.4191 0.153048C22.4215 0.0747443 22.3561 0.00949133 22.2776 0.00949133V0.00830489Z" fill="#E62058"/>
+          <path d="M3.52833 21.485C5.01962 21.485 6.22854 20.2792 6.22854 18.7918C6.22854 17.3044 5.01962 16.0986 3.52833 16.0986C2.03705 16.0986 0.828125 17.3044 0.828125 18.7918C0.828125 20.2792 2.03705 21.485 3.52833 21.485Z" fill="#E62058"/>
+        </svg>
+      </div>
+      <div>
+        <h1>flare <span class="sep">|</span> <span class="chef">Stake Chef</span></h1>
+        <p class="sub" id="subtitle"></p>
+      </div>
+    </div>
+    <div class="lang-toggle" id="langToggle" onclick="switchLang()">
+      <span id="langJA" class="active">JA</span>
+      <span id="langEN">EN</span>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <label id="lbl_amount"></label>
+        <div class="iw">
+          <input type="number" id="amount" min="50000" value="50000">
+          <span class="unit">FLR</span>
+        </div>
+      </div>
+      <div>
+        <label id="lbl_enddate"></label>
+        <div class="cal-display" id="calDisplay" onclick="toggleCal()">
+          <span id="calLabel"></span>
+          <span class="cal-icon">📅</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Calendar popup -->
+    <div class="cal-popup" id="calPopup">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="moveMonth(-1)">&#8249;</button>
+        <span class="cal-month-lbl" id="calMonthLbl"></span>
+        <button class="cal-nav-btn" onclick="moveMonth(1)">&#8250;</button>
+      </div>
+      <div class="cal-dow" id="calDow"></div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-hint" id="calHint"></div>
+    </div>
+
+    <div class="condition-box">
+      <p class="cond-title" id="cond_title"></p>
+      <ul class="cond-list" id="cond_list"></ul>
+    </div>
+    <button class="btn" id="searchBtn" onclick="go()"></button>
+    <p class="data-note">v1.1 P-Chain &nbsp;|&nbsp; <span id="dataDate">...</span> &nbsp;|&nbsp; <a href="https://github.com/flare-foundation/reward-scripts" target="_blank">Flare公式の報酬実績データより算出</a></p>
+    <p class="credit" id="credit"></p>
+    <div class="disclaimer">
+      <button class="disc-toggle" id="discToggle" onclick="toggleDisclaimer()"><span class="disc-arrow">▶</span> <span id="disc_label"></span></button>
+      <div class="disc-body" id="discBody">
+        <div class="disc-inner">
+          <ul id="disc_list"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="results">
+    <div class="rh">
+      <span class="rt" id="rt_label"></span>
+      <span class="rc" id="rc"></span>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div class="vlist" id="vlist"></div>
+
+  </div>
+</div>
+
+<script>
+/* ── i18n ── */
+let lang = localStorage.getItem('flr_lang') || 'ja';
+const T = {
+  ja: {
+    subtitle: '<strong>FLRステーキング</strong>のバリデータを探そう',
+    lbl_amount: 'ステーキング数量 <span class="label-hint">最低 50,000 FLR</span>',
+    lbl_enddate: 'ステーキング終了日 <span class="label-hint">今日から14日後〜</span>',
+    cal_select: '日付を選択',
+    cal_hint: '↑ ステーキングを終了する日を選択（今日+14日〜）',
+    cal_dow: ['月','火','水','木','金','土','日'],
+    cal_months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+    cal_dur: (d)=> '（'+d+'日間）',
+    cond_title: '検索条件',
+    cond_items: ['Uptime 99% 以上 かつ 直近エポックで報酬実績あり','指定期間・数量で空き容量あり','実質APR（手数料控除後）の高い順に10件ずつ表示'],
+    btn_search: '🔍 バリデータを検索する',
+    btn_loading: '🔄 データ取得中...',
+    rt_label: 'おすすめバリデータ',
+    credit: 'Provided by <a href="https://lit.link/flarejapancommunity" target="_blank">Flare Japan Community</a>',
+    data_live: (n) => 'P-Chain LIVE: ' + new Date().toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + 'ノード取得)'
+      + (APR_META ? ' ／ 実質APR: 直近' + APR_META.windowDays + '日の実績 (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + ')' : ''),
+    data_fail: (e) => 'データ取得失敗: ' + e,
+    alert_amount: 'ステーキング数量を入力してください',
+    alert_date: 'ステーキング終了日をカレンダーで選択してください',
+    fail_msg: 'データの取得に失敗しました。ページをリロードして再試行してください。',
+    none_msg: '条件に合うバリデータが見つかりませんでした。<br>条件を変えてお試しください。',
+    summary: (nodes,amt,dur,total,shown,all)=> nodes+'ノード中・Uptime≥99%・空き≥'+amt.toLocaleString()+' FLR・残'+dur+'日以上 の条件に合致: '+total+'件。'+(shown<total?'上位'+shown+'件を表示。':'全件表示。'),
+    pill_fee: (f)=> '手数料 '+f+'%',
+    pill_uptime: (u)=> '稼働率 '+u.toFixed(1)+'%',
+    pill_elig: (o,n)=> '報酬実績 '+o+'/'+n,
+    pill_free: (s)=> '空き '+s,
+    apr_label: '実質APR',
+    apr_unknown: 'APR未確定',
+    apr_tip: (v,m,d)=> '検証報酬 '+v.toFixed(2)+'% ＋ FTSO分 '+m.toFixed(2)+'%'
+      + (d>0.05 ? '\n（自分の参加による希薄化 -'+d.toFixed(2)+'pt を反映済み）' : ''),
+    node_label: '📋 NODE ID — FlarePortalの検索欄に貼り付け',
+    copy: 'コピー',
+    copied: '✓ コピー済',
+    more: (n,r)=> '▼ さらに'+n+'件表示（残り'+r+'件）',
+    rc: (s,t)=> s+' / '+t+'件',
+    ends: (d,dl)=> d+'（残'+dl+'日）',
+    disc_label: '免責事項',
+    disc_items: [
+      '本ツールの利用により生じたいかなる損害・不利益についても、開発者および提供者は一切の責任を負いかねます。',
+      '本ツールは情報提供を目的としており、投資助言・推奨を行うものではありません。',
+      '表示されるデータはリアルタイム取得ですが、正確性を保証するものではありません。<br>お問い合わせは <a href="https://x.com/flarejapangroup" target="_blank">Flare Japan CommunityのX</a> まで。|contact',
+      '暗号資産への投資にはリスクが伴います。最終的な判断はご自身の責任においてお願いいたします。',
+    ],
+  },
+  en: {
+    subtitle: 'Find the <strong>best validator</strong> for your stake',
+    lbl_amount: 'Staking Amount <span class="label-hint">Min 50,000 FLR</span>',
+    lbl_enddate: 'End Date <span class="label-hint">14+ days from today</span>',
+    cal_select: 'Select date',
+    cal_hint: '↑ Select staking end date (today + 14 days minimum)',
+    cal_dow: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    cal_months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    cal_dur: (d)=> ' ('+d+' days)',
+    cond_title: 'Search Criteria',
+    cond_items: ['Uptime ≥ 99% and actually paid in recent epochs','Free capacity for your amount & duration','Sorted by net APR (after fees), 10 at a time'],
+    btn_search: '🔍 Search Validators',
+    btn_loading: '🔄 Fetching data...',
+    rt_label: 'Recommended Validators',
+    credit: 'Provided by <a href="https://lit.link/flarejapancommunity" target="_blank">Flare Japan Community</a>',
+    data_live: (n) => 'P-Chain LIVE: ' + new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + ' nodes)'
+      + (APR_META ? ' / Net APR: last ' + APR_META.windowDays + 'd measured (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + ')' : ''),
+    data_fail: (e) => 'Fetch failed: ' + e,
+    alert_amount: 'Please enter a staking amount',
+    alert_date: 'Please select an end date from the calendar',
+    fail_msg: 'Failed to fetch data. Please reload the page and try again.',
+    none_msg: 'No validators found matching your criteria.<br>Try adjusting your search.',
+    summary: (nodes,amt,dur,total,shown,all)=> nodes+' nodes · Uptime≥99% · Free≥'+amt.toLocaleString()+' FLR · '+dur+'+ days: '+total+' match.'+(shown<total?' Top '+shown+' shown.':' All shown.'),
+    pill_fee: (f)=> 'Fee '+f+'%',
+    pill_uptime: (u)=> 'Uptime '+u.toFixed(1)+'%',
+    pill_elig: (o,n)=> 'Paid '+o+'/'+n,
+    pill_free: (s)=> 'Free '+s,
+    apr_label: 'Net APR',
+    apr_unknown: 'APR pending',
+    apr_tip: (v,m,d)=> 'Validation '+v.toFixed(2)+'% + FTSO share '+m.toFixed(2)+'%'
+      + (d>0.05 ? '\n(dilution from your own stake -'+d.toFixed(2)+'pt already applied)' : ''),
+    node_label: '📋 NODE ID — Paste into FlarePortal search',
+    copy: 'Copy',
+    copied: '✓ Copied',
+    more: (n,r)=> '▼ Show '+n+' more ('+r+' remaining)',
+    rc: (s,t)=> s+' / '+t,
+    ends: (d,dl)=> d+' ('+dl+'d left)',
+    disc_label: 'Disclaimer',
+    disc_items: [
+      'The developers and providers assume no liability for any losses or damages arising from the use of this tool.',
+      'This tool is for informational purposes only and does not constitute investment advice or recommendations.',
+      'Data is fetched in real-time but accuracy is not guaranteed. For data inquiries, contact <a href="https://x.com/flarejapangroup" target="_blank">Flare Japan Community on X</a>.|contact',
+      'Investing in crypto assets involves risk. All investment decisions are made at your own discretion and responsibility.',
+    ],
+  }
+};
+
+function switchLang(){
+  lang = lang==='ja'?'en':'ja';
+  localStorage.setItem('flr_lang', lang);
+  applyLang();
+  // Re-render results if search was performed
+  if(document.getElementById('results').classList.contains('on')) render();
+  // Re-render dataDate if data was loaded
+  if(NODES.length > 0) {
+    document.getElementById('dataDate').textContent = T[lang].data_live(NODES.length);
+  }
+}
+
+function applyLang(){
+  const t = T[lang];
+  document.getElementById('langJA').className = lang==='ja'?'active':'';
+  document.getElementById('langEN').className = lang==='en'?'active':'';
+  document.getElementById('subtitle').innerHTML = t.subtitle;
+  document.getElementById('lbl_amount').innerHTML = t.lbl_amount;
+  document.getElementById('lbl_enddate').innerHTML = t.lbl_enddate;
+  if(!selectedDate){
+    document.getElementById('calLabel').textContent = t.cal_select;
+  } else {
+    // Re-render selected date label in current language
+    const diff = Math.round((selectedDate - TODAY) / 86400000);
+    const mo = (selectedDate.getMonth()+1)+'';
+    const da = selectedDate.getDate()+'';
+    document.getElementById('calLabel').textContent =
+      selectedDate.getFullYear()+'/'+mo.padStart(2,'0')+'/'+da.padStart(2,'0')+
+      '\u3000'+t.cal_dur(diff);
+  }
+  document.getElementById('calHint').textContent = t.cal_hint;
+  document.getElementById('calDow').innerHTML = t.cal_dow.map(d=>'<span>'+d+'</span>').join('');
+  document.getElementById('cond_title').textContent = t.cond_title;
+  document.getElementById('cond_list').innerHTML = t.cond_items.map(i=>'<li>'+i+'</li>').join('');
+  document.getElementById('searchBtn').textContent = t.btn_search;
+  document.getElementById('rt_label').textContent = t.rt_label;
+  document.getElementById('credit').innerHTML = t.credit;
+  document.getElementById('disc_label').textContent = t.disc_label;
+  document.getElementById('disc_list').innerHTML = t.disc_items.map(item => {
+    const isContact = item.endsWith('|contact');
+    const text = item.replace('|contact','');
+    return '<li'+(isContact?' class="disc-contact"':'')+'>'+text+'</li>';
+  }).join('');
+  if(typeof renderCal === 'function' && document.getElementById('calPopup').classList.contains('open')) renderCal();
+}
+
+/* ── 実質APRデータ (build-apr.py で事前計算) + P-Chain ── */
+let NODES = [];
+let APR_META = null;
+
+// build-apr.py が出力した apr.json の場所。別ホストに置く場合はここを絶対URLに変える。
+const APR_DATA_URL = 'apr.json';
+
+function formatEndDate(unixTs) {
+  const d = new Date(unixTs * 1000);
+  return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
+}
+
+async function loadValidatorData() {
+  try {
+    /* ── Step 1: 実質APRデータを取得 ──
+       Flare財団が公開する実支払記録から算出済み。委任者の手取り（手数料控除後）。
+         apr = VRM(P-Chain検証報酬) + MIRROR(FTSOインフレ分)                        */
+    const aResp = await fetch(APR_DATA_URL, {cache: 'no-cache'});
+    if (!aResp.ok) throw new Error('APR data HTTP ' + aResp.status);
+    const aprData = await aResp.json();
+    const aprByNode = aprData.nodes || {};
+    APR_META = aprData;
+    console.log('APR data: epochs', aprData.epochs, '/', Object.keys(aprByNode).length, 'nodes');
+
+    /* ── Step 2: P-Chain APIからバリデータデータを取得 ── */
+    const pResp = await fetch('https://flare-api.flare.network/ext/bc/P', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({jsonrpc:'2.0', method:'platform.getCurrentValidators', params:{}, id:1})
+    });
+    if (!pResp.ok) throw new Error('P-Chain HTTP ' + pResp.status);
+    const pData = await pResp.json();
+    if (!pData.result || !pData.result.validators) throw new Error('P-Chain invalid response');
+    const rawValidators = pData.result.validators;
+
+    /* ── Step 3: ノード単位でデータ構築 ── */
+    const nowSec = Date.now() / 1000;
+    NODES = [];
+
+    for (const v of rawValidators) {
+      const nodeIdFull = v.nodeID.replace('NodeID-', '');
+      const prefix = nodeIdFull.slice(0, 12);
+      const info = aprByNode[v.nodeID];
+      if (!info || !info.name) continue;
+
+      const selfBond  = parseInt(v.weight) / 1e9;
+      const delegated = parseInt(v.delegatorWeight || '0') / 1e9;
+      const totalStake = selfBond + delegated;
+      // 1ノードあたりの上限は self-bond の15倍、かつ 300M FLR
+      // （200M → 300M は Granite ハードフォーク 2026-07-14 で引き上げ）
+      const capacity  = Math.min(selfBond * 15, 300000000);
+      const freeSpace = Math.max(capacity - totalStake, 0);
+
+      const endTime  = parseInt(v.endTime);
+      const daysLeft = Math.max(0, Math.floor((endTime - nowSec) / 86400));
+      if (daysLeft <= 0) continue;
+
+      // 報酬適格率: 直近の各エポックで実際に報酬対象になった割合。
+      // P-Chainのuptimeは瞬間値なので、これが本当の「報酬をちゃんと出すか」の指標。
+      const eligRate = info.observedEpochs
+        ? info.eligibleEpochs / info.observedEpochs : 0;
+
+      NODES.push({
+        entity:  info.name,
+        apr:     info.apr,          // 手数料控除後（VRM + MIRROR）
+        vrm:     info.vrm,
+        mirror:  info.mirror,
+        uptime:  parseFloat(v.uptime),
+        fee:     parseFloat(v.delegationFee),
+        eligOK:  info.eligibleEpochs,
+        eligOf:  info.observedEpochs,
+        eligRate: eligRate,
+        freeM:   freeSpace / 1000000,
+        freeFLR: Math.round(freeSpace),
+        minDays: daysLeft,
+        endDate: formatEndDate(endTime),
+        nodeId:  prefix,
+        fullNodeId: v.nodeID,
+        del:     parseInt(v.delegatorCount || '0'),
+        selfBondM: selfBond / 1000000,
+        totalStakeM: totalStake / 1000000,
+        stakeFLR: totalStake,
+        knownEntity: true,
+      });
+    }
+
+    // APR が null（報酬データ未確定）のノードは NaN 比較にならないよう最下位に送る
+    NODES.sort((a,b) => (b.apr ?? -1) - (a.apr ?? -1) || b.freeFLR - a.freeFLR);
+
+    document.getElementById('dataDate').textContent = T[lang].data_live(NODES.length);
+    console.log('Combined: P-Chain', rawValidators.length, '+ APR data →', NODES.length, 'named nodes');
+    return true;
+  } catch(e) {
+    console.error('Data fetch failed:', e);
+    document.getElementById('dataDate').textContent = T[lang].data_fail(e.message);
+    NODES = [];
+    return false;
+  }
+}
+
+
+
+
+/* ── Calendar ── */
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const MIN_DATE = new Date(TODAY); MIN_DATE.setDate(MIN_DATE.getDate()+14);
+let calYear = MIN_DATE.getFullYear();
+let calMonth = MIN_DATE.getMonth();
+let selectedDate = null;
+
+
+
+function toggleCal(){
+  document.getElementById('calPopup').classList.toggle('open');
+  if(document.getElementById('calPopup').classList.contains('open')) renderCal();
+}
+
+function moveMonth(d){
+  calMonth+=d;
+  if(calMonth>11){calMonth=0;calYear++;}
+  if(calMonth<0){calMonth=11;calYear--;}
+  renderCal();
+}
+
+function renderCal(){
+  const t = T[lang];
+  document.getElementById('calMonthLbl').textContent = (lang==='ja'? calYear+'年 '+t.cal_months[calMonth] : t.cal_months[calMonth]+' '+calYear);
+  document.getElementById('calDow').innerHTML = t.cal_dow.map(d=>'<span>'+d+'</span>').join('');
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML='';
+  const first = new Date(calYear,calMonth,1);
+  // Monday=0 offset
+  let dow = first.getDay(); // 0=Sun
+  dow = dow===0?6:dow-1;    // convert to Mon=0
+  for(let i=0;i<dow;i++){
+    const e=document.createElement('div');e.className='cal-day empty';grid.appendChild(e);
+  }
+  const daysInMonth = new Date(calYear,calMonth+1,0).getDate();
+  for(let day=1;day<=daysInMonth;day++){
+    const d=document.createElement('button');
+    const dt=new Date(calYear,calMonth,day);
+    const isDisabled=dt<MIN_DATE;
+    const isToday=dt.getTime()===TODAY.getTime();
+    const isSel=selectedDate&&dt.getTime()===selectedDate.getTime();
+    d.className='cal-day'+(isDisabled?' disabled':'')+(isToday?' today':'')+(isSel?' selected':'');
+    d.textContent=day;
+    if(!isDisabled){
+      d.onclick=()=>selectDate(dt);
+    } else {
+      d.disabled=true;
+    }
+    grid.appendChild(d);
+  }
+}
+
+function selectDate(dt){
+  selectedDate=dt;
+  const diff=Math.round((dt-TODAY)/86400000);
+  const mo=(dt.getMonth()+1)+'';
+  const da=dt.getDate()+'';
+  document.getElementById('calLabel').textContent=
+    dt.getFullYear()+'/'+mo.padStart(2,'0')+'/'+da.padStart(2,'0')+
+    '　'+T[lang].cal_dur(diff);
+  document.getElementById('calPopup').classList.remove('open');
+  renderCal();
+}
+
+function getDuration(){
+  if(!selectedDate) return null;
+  return Math.round((selectedDate-TODAY)/86400000);
+}
+
+
+function toggleDisclaimer(){
+  const btn = document.getElementById('discToggle');
+  const body = document.getElementById('discBody');
+  btn.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+const AF=new Set(['uptime','space','stable']);
+function tog(el){const f=el.dataset.f;if(AF.has(f)){AF.delete(f);el.classList.remove('on');}else{AF.add(f);el.classList.add('on');}}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function copyNode(text, btn){
+  const t = T[lang];
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent=t.copied;btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent=t.copy;btn.classList.remove('ok');},2500);
+  }).catch(()=>{
+    const ta=document.createElement('textarea');
+    ta.value=text;ta.style.cssText='position:fixed;opacity:0';
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent=t.copied;btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent=t.copy;btn.classList.remove('ok');},2500);
+  });
+}
+
+const RANK_COLORS=['#E8521A','#e07b30','#d9963f','#c9a84c','#b8b05a','#9db868','#82be76','#67c285','#4ec494','#38c4a4'];
+const MIN_ELIG_RATE=0.75;   // 直近エポックのうち報酬対象だった割合の下限
+
+async function go(){
+  const amount=parseFloat(document.getElementById('amount').value);
+  const duration=getDuration();
+  const t = T[lang];
+  if(!amount||amount<=0){alert(t.alert_amount);return;}
+  if(!duration){alert(t.alert_date);return;}
+
+  const btn=document.getElementById('searchBtn');
+  btn.disabled=true;
+  btn.textContent=t.btn_loading;
+  document.getElementById('results').classList.remove('on');
+
+  const ok = await loadValidatorData();
+
+  btn.disabled=false;
+  btn.textContent=t.btn_search;
+
+  if(!ok || NODES.length === 0){
+    document.getElementById('summary').textContent=t.fail_msg;
+    document.getElementById('rc').textContent='0';
+    document.getElementById('vlist').innerHTML='';
+    document.getElementById('results').classList.add('on');
+    return;
+  }
+
+  let filtered=NODES.filter(n=>{
+    if(!n.knownEntity) return false;
+    if(n.uptime<99) return false;
+    // 報酬適格性: 直近エポックの1/4超を取りこぼしているノードは除外。
+    // uptimeが100%でも報酬ゼロのバリデータが実在するため、uptimeだけでは足りない。
+    if(n.eligRate<MIN_ELIG_RATE) return false;
+    if(n.freeFLR<amount) return false;
+    if(n.minDays<duration) return false;
+    return true;
+  });
+
+  // 自分が入った後のAPRに補正する。
+  // VRMはステーク比例なので不変。MIRRORはノードの取り分が概ね固定で、
+  // それを全ステーカーで分けるため、自分の分だけ薄まる。
+  //   MIRROR後 = MIRROR現在 × 現在のステーク / (現在のステーク + 自分の数量)
+  // 小さいノードほど表示APRが高く出るが、入った瞬間に下がる ── その分を先に引く。
+  filtered.forEach(n=>{
+    const dilution = n.stakeFLR / (n.stakeFLR + amount);
+    n.mirrorAfter = n.mirror * dilution;
+    n.aprAfter = n.vrm + n.mirrorAfter;
+    n.dilutionPt = n.apr - n.aprAfter;
+  });
+
+  filtered.sort((a,b)=>{
+    const aApr = a.aprAfter ?? -1;
+    const bApr = b.aprAfter ?? -1;
+    if(bApr!==aApr) return bApr-aApr;
+    return b.freeFLR-a.freeFLR;
+  });
+
+  // フィルタ結果を保持して段階表示
+  lastFiltered = filtered;
+  lastAmount = amount;
+  lastDuration = duration;
+  showCount = 10;
+
+  render();
+}
+
+let lastFiltered = [];
+let lastAmount = 0;
+let lastDuration = 0;
+let showCount = 10;
+
+function showMore(){
+  const prevCount = showCount;
+  showCount += 10;
+  const t = T[lang];
+  const total = lastFiltered.length;
+  const top = lastFiltered.slice(0, showCount);
+  const remaining = total - top.length;
+  const list = document.getElementById('vlist');
+
+  // Remove existing more-button
+  const oldBtn = list.querySelector('.more-btn');
+  if(oldBtn) oldBtn.remove();
+
+  // Append only the NEW cards
+  const newItems = lastFiltered.slice(prevCount, showCount);
+  newItems.forEach(function(n, idx){
+    const i = prevCount + idx;
+    list.appendChild(buildCard(n, i, t));
+  });
+
+  // Update summary/count
+  document.getElementById('summary').textContent=
+    t.summary(NODES.length, lastAmount, lastDuration, total, top.length, total);
+  document.getElementById('rc').textContent=t.rc(top.length, total);
+
+  // Re-add more-button if needed
+  if(remaining > 0){
+    const moreBtn = document.createElement('button');
+    moreBtn.className = 'more-btn';
+    moreBtn.textContent = t.more(Math.min(remaining, 10), remaining);
+    moreBtn.onclick = showMore;
+    list.appendChild(moreBtn);
+  }
+}
+
+function buildCard(n, i, t){
+  const d=document.createElement('div');
+  d.className='vc'+(i===0?' best':'');
+  d.style.animationDelay=(i*.06)+'s';
+
+  const rc=RANK_COLORS[i]||'#555';
+  const freeDisp=n.freeM>=1?n.freeM.toFixed(1)+'M':
+                 n.freeM>=0.01?Math.round(n.freeM*1000)+'K':
+                 n.freeFLR.toLocaleString()+' FLR';
+
+  const shortId = n.nodeId.slice(0,12);
+  const safeShort = shortId.replace(/'/g,"\\'");
+
+  const feeCls = n.fee<=9?'to':n.fee<=12?'tb':'';
+  const uptimeCls = n.uptime>=99.9?'tg':n.uptime>=99?'tb':'tr';
+  const freeCls = n.freeM>=100?'tg':n.freeM>=10?'tb':n.freeM>=1?'':'tr';
+  const eligCls = n.eligRate>=1?'tg':n.eligRate>=MIN_ELIG_RATE?'tb':'tr';
+  const pills =
+    '<span class="tag '+feeCls+'">'+t.pill_fee(n.fee)+'</span>'+
+    '<span class="tag '+uptimeCls+'">'+t.pill_uptime(n.uptime)+'</span>'+
+    '<span class="tag '+eligCls+'">'+t.pill_elig(n.eligOK, n.eligOf)+'</span>'+
+    '<span class="tag">'+esc(t.ends(n.endDate, n.minDays))+'</span>'+
+    '<span class="tag '+freeCls+'">'+t.pill_free(freeDisp)+'</span>';
+
+  d.innerHTML=
+    '<div class="vc-header">'+
+      '<div class="rb" style="background:'+rc+'">&#35;'+(i+1)+'</div>'+
+      '<div>'+
+        '<div class="vname">'+esc(n.entity)+'</div>'+
+        '<div class="tags">'+pills+'</div>'+
+      '</div>'+
+      '<div class="vstats">'+
+        '<div class="apr" title="'+t.apr_tip(n.vrm, n.mirrorAfter, n.dilutionPt)+'">'+
+          (n.aprAfter !== null && n.aprAfter !== undefined ? n.aprAfter.toFixed(1)+'%' : '---')+'</div>'+
+        '<div class="apr-lbl">'+(n.aprAfter ? t.apr_label : t.apr_unknown)+'</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="node-block">'+
+      '<div class="node-block-label">'+t.node_label+'</div>'+
+      '<div class="node-id-row">'+
+        '<div class="node-id-text" onclick="copyNode(\''+safeShort+'\',document.getElementById(\'cb'+i+'\'))">'+esc(shortId)+'</div>'+
+        '<button class="copy-btn" id="cb'+i+'" onclick="copyNode(\''+safeShort+'\',this)">'+t.copy+'</button>'+
+      '</div>'+
+    '</div>';
+  return d;
+}
+
+function render(){
+  const t = T[lang];
+  const total = lastFiltered.length;
+  const top = lastFiltered.slice(0, showCount);
+  const remaining = total - top.length;
+
+  document.getElementById('summary').textContent=
+    t.summary(NODES.length, lastAmount, lastDuration, total, top.length, total);
+  document.getElementById('rc').textContent=t.rc(top.length, total);
+
+  const list=document.getElementById('vlist');
+  list.innerHTML='';
+
+  if(!top.length){
+    list.innerHTML='<p class="none-msg">'+t.none_msg+'</p>';
+    document.getElementById('results').classList.add('on');
+    return;
+  }
+
+  top.forEach(function(n,i){
+    list.appendChild(buildCard(n, i, t));
+  });
+
+  // 「さらに表示」ボタン
+  if(remaining > 0){
+    const moreBtn = document.createElement('button');
+    moreBtn.className = 'more-btn';
+    moreBtn.textContent = t.more(Math.min(remaining, 10), remaining);
+    moreBtn.onclick = showMore;
+    list.appendChild(moreBtn);
+  }
+
+  document.getElementById('results').classList.add('on');
+}
+
+/* ── Init ── */
+applyLang();
+</script>
+</body>
+</html>

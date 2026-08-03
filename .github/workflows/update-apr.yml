@@ -1,0 +1,36 @@
+name: Update APR data
+
+# Flareのリワードエポックは3.5日ごと。データ確定に少し遅れがあるので
+# 1日1回まわして、新しいエポックが出たら apr.json を更新する。
+on:
+  schedule:
+    - cron: "20 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build apr.json
+        run: python3 build-apr.py -o apr.json
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- apr.json; then
+            echo "変更なし（新しいエポックがまだ確定していない）"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apr.json
+          git commit -m "chore: update apr.json ($(python3 -c "import json;d=json.load(open('apr.json'));print('epoch %d-%d' % (d['epochs'][0], d['epochs'][-1]))"))"
+          git push
