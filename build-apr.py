@@ -19,10 +19,13 @@ Flare財団が公開している「実際にいくら支払ったか」の記録
 """
 
 import argparse
+import datetime
 import hashlib
 import json
+import os
 import statistics
 import sys
+import time
 import urllib.error
 import urllib.request
 from collections import defaultdict
@@ -35,6 +38,8 @@ EPOCH_DAYS = 3.5
 ANNUALIZE = 365.25 / EPOCH_DAYS
 DEFAULT_WINDOW = 4          # = 14日 = 公式の請求サイクル1回分
 REGIME_BREAK = 0.35         # ネットワークMIRROR原資がこれ以上動いたら制度変更とみなす
+MIN_WINDOW_EPOCHS = 2       # これ未満しか取れなければ書き出さずに失敗させる
+MIN_NODES = 100             # 同上（現状 約175ノード）
 
 B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
@@ -52,9 +57,24 @@ def node_id_to_hex(node_id: str) -> str:
     return "0x" + body.hex()
 
 
-def fetch(url: str):
-    with urllib.request.urlopen(url, timeout=120) as r:
-        return json.load(r)
+def fetch(url: str, retries: int = 3):
+    headers = {}
+    # 未認証のGitHub APIは60回/時で、Actionsのランナーは他ユーザーとIPを共有するため枯渇しやすい
+    token = os.environ.get("GITHUB_TOKEN")
+    if token and url.startswith("https://api.github.com/"):
+        headers["Authorization"] = f"Bearer {token}"
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=headers),
+                                        timeout=120) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as ex:
+            if ex.code == 404 or attempt == retries - 1:
+                raise
+        except urllib.error.URLError:
+            if attempt == retries - 1:
+                raise
+        time.sleep(5 * (attempt + 1))
 
 
 def latest_complete_epoch() -> int:
@@ -83,12 +103,16 @@ def load_epoch(e: int):
             mirror[b["beneficiary"].lower()] = int(b["amount"]) / 1e18
 
     weights = {}
+    entity_of = {}
     for v in info["voterRegistrationInfo"]:
         i = v["voterRegistrationInfo"]
         for nid, w in zip(i["nodeIds"], i["nodeWeights"]):
             weights[nid.lower()] = int(w) / 1e18       # vote power block時点のミラー済ステーク
+            # MIRRORはノード単位ではなくエンティティ(voter)単位のプールを、
+            # その全ノードのステークで分け合う（実測でノード間の率が完全一致）
+            entity_of[nid.lower()] = i["voter"].lower()
 
-    return nodes, mirror, weights
+    return nodes, mirror, weights, entity_of
 
 
 def network_mirror_pool(mirror, weights) -> float:
@@ -116,6 +140,11 @@ def main() -> int:
             print(f"  epoch {e} 取得", file=sys.stderr)
         except urllib.error.HTTPError as ex:
             print(f"  epoch {e} スキップ (HTTP {ex.code})", file=sys.stderr)
+        except urllib.error.URLError as ex:
+            print(f"  epoch {e} スキップ ({ex.reason})", file=sys.stderr)
+    if not loaded:
+        print("エポックを1つも取得できませんでした。apr.json は更新しません。", file=sys.stderr)
+        return 1
 
     # --- 制度変更の検出: ネットワークMIRROR原資が段差を作った直近の位置を探す ---
     pools = {e: network_mirror_pool(loaded[e][1], loaded[e][2]) for e in loaded}
@@ -135,7 +164,7 @@ def main() -> int:
     acc = defaultdict(lambda: {"rew": 0.0, "amt": 0.0, "mir": 0.0, "wt": 0.0,
                                "elig": 0, "seen": 0, "name": None, "fee": None})
     for e in window:
-        nodes, mirror, weights = loaded[e]
+        nodes, mirror, weights, _ = loaded[e]
         for n in nodes:
             a = acc[n["nodeId"]]
             a["rew"] += sum(int(d.get("delegatorRewardAmount", 0) or 0)
@@ -150,6 +179,8 @@ def main() -> int:
                 a["mir"] += mirror.get(h, 0.0)
                 a["wt"] += weights[h]
 
+    entity_of = loaded[window[-1]][3]
+
     out = {}
     for node_id, a in acc.items():
         vrm = a["rew"] / a["amt"] * 100 * ANNUALIZE if a["amt"] > 0 else None
@@ -158,6 +189,7 @@ def main() -> int:
             continue
         out[node_id] = {
             "name": a["name"],
+            "entity": entity_of.get(node_id_to_hex(node_id)),
             "vrm": round(vrm or 0.0, 3),
             "mirror": round(mir or 0.0, 3),
             "apr": round((vrm or 0.0) + (mir or 0.0), 3),
@@ -166,11 +198,15 @@ def main() -> int:
             "observedEpochs": a["seen"],
         }
 
+    if len(window) < MIN_WINDOW_EPOCHS or len(out) < MIN_NODES:
+        print(f"データ不足（{len(window)}エポック / {len(out)}ノード）。"
+              f"apr.json は更新しません。", file=sys.stderr)
+        return 1
+
     aprs = sorted(v["apr"] for v in out.values())
     payload = {
-        "schema": 1,
-        "generatedAt": __import__("datetime").datetime.now(
-            __import__("datetime").timezone.utc).isoformat(timespec="seconds"),
+        "schema": 2,
+        "generatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "epochs": window,
         "epochDays": EPOCH_DAYS,
         "windowDays": round(len(window) * EPOCH_DAYS, 1),
@@ -178,10 +214,23 @@ def main() -> int:
         "medianApr": round(statistics.median(aprs), 3) if aprs else None,
         "nodes": out,
     }
+
+    # 中身が前回と同じなら書き換えない。generatedAt だけ変わって毎日コミットされるのを防ぎ、
+    # generatedAt を「新しいエポックを取り込んだ日」という意味に保つ。
+    try:
+        with open(args.out) as f:
+            prev = json.load(f)
+        if {k: v for k, v in prev.items() if k != "generatedAt"} == \
+           {k: v for k, v in payload.items() if k != "generatedAt"}:
+            print(f"\n変更なし（epoch {window[0]}〜{window[-1]} のまま）。"
+                  f"{args.out} は書き換えません。", file=sys.stderr)
+            return 0
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+
     with open(args.out, "w") as f:
         json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
 
-    import os
     print(f"\n{args.out} を書き出しました: {len(out)}ノード / "
           f"{os.path.getsize(args.out) / 1024:.1f} KB", file=sys.stderr)
     print(f"窓: epoch {window[0]}〜{window[-1]} ({payload['windowDays']}日) / "

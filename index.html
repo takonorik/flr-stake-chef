@@ -131,6 +131,16 @@ select option{background:#ffffff}
 .cond-list li{font-size:.78rem;color:#555;padding-left:14px;position:relative}
 .cond-list li::before{content:"✓";position:absolute;left:0;color:var(--flare);font-size:.72rem}
 .label-hint{font-size:.62rem;letter-spacing:.02em;text-transform:none;color:var(--muted);font-weight:400;margin-left:4px}
+.opt-row{display:flex;align-items:flex-start;gap:8px;margin:10px 0 0;padding-top:10px;border-top:1px dashed rgba(230,32,88,.2);font-family:'Noto Sans JP',sans-serif;font-size:.74rem;letter-spacing:0;text-transform:none;color:#555;cursor:pointer;line-height:1.5}
+.opt-row input{margin-top:3px;accent-color:var(--flare);flex-shrink:0}
+.opt-row small{display:block;color:var(--muted);font-size:.66rem}
+.stale-warn{display:none;margin-top:8px;padding:8px 12px;border-radius:6px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#b91c1c;font-size:.72rem;text-align:center;line-height:1.5}
+.stale-warn.on{display:block}
+.claim-note{display:none;margin:-8px 0 16px;padding:10px 14px;border-radius:8px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.3);color:#854d0e;font-size:.72rem;line-height:1.6}
+.claim-note.on{display:block}
+.reward{font-family:'Space Mono',monospace;font-size:.66rem;color:var(--text);margin-top:3px}
+.tu{background:rgba(138,138,154,.15);color:#6b6b7b}
+.node-full{font-size:.72rem;letter-spacing:.02em;word-break:break-all}
 .data-note{font-size:.62rem;color:var(--muted);text-align:center;margin-top:12px}
 .data-note a{color:var(--muted);text-decoration:none;border-bottom:1px dotted var(--muted)}
 .none-msg{color:var(--muted);font-size:.83rem;padding:20px 0;text-align:center}
@@ -216,9 +226,14 @@ select option{background:#ffffff}
     <div class="condition-box">
       <p class="cond-title" id="cond_title"></p>
       <ul class="cond-list" id="cond_list"></ul>
+      <label class="opt-row">
+        <input type="checkbox" id="showUnnamed">
+        <span id="lbl_unnamed"></span>
+      </label>
     </div>
     <button class="btn" id="searchBtn" onclick="go()"></button>
-    <p class="data-note">v1.1 P-Chain &nbsp;|&nbsp; <span id="dataDate">...</span> &nbsp;|&nbsp; <a href="https://github.com/flare-foundation/reward-scripts" target="_blank">Flare公式の報酬実績データより算出</a></p>
+    <p class="data-note">v1.2 P-Chain &nbsp;|&nbsp; <span id="dataDate">...</span> &nbsp;|&nbsp; <a href="https://github.com/flare-foundation/reward-scripts" target="_blank">Flare公式の報酬実績データより算出</a></p>
+    <p class="stale-warn" id="staleWarn"></p>
     <p class="credit" id="credit"></p>
     <div class="disclaimer">
       <button class="disc-toggle" id="discToggle" onclick="toggleDisclaimer()"><span class="disc-arrow">▶</span> <span id="disc_label"></span></button>
@@ -236,6 +251,7 @@ select option{background:#ffffff}
       <span class="rc" id="rc"></span>
     </div>
     <div class="summary" id="summary"></div>
+    <p class="claim-note" id="claimNote"></p>
     <div class="vlist" id="vlist"></div>
 
   </div>
@@ -261,13 +277,20 @@ const T = {
     rt_label: 'おすすめバリデータ',
     credit: 'Provided by <a href="https://lit.link/flarejapancommunity" target="_blank">Flare Japan Community</a>',
     data_live: (n) => 'P-Chain LIVE: ' + new Date().toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + 'ノード取得)'
-      + (APR_META ? ' ／ 実質APR: 直近' + APR_META.windowDays + '日の実績 (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + ')' : ''),
+      + (APR_META ? ' ／ 実質APR: 直近' + APR_META.windowDays + '日の実績 (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + '、' + fmtMD(APR_META.generatedAt) + '取込)' : ''),
     data_fail: (e) => 'データ取得失敗: ' + e,
+    stale: (d, date) => '⚠️ APRデータが' + d + '日前（' + date + '）のままです。通常は3〜4日ごとに更新されます。手元で開いている場合は git pull で最新化してください。',
+    lbl_unnamed: '名称未登録のノードも表示する<small>運営者名が公式リストに無いノードです。報酬実績の条件は同じく適用しますが、運営者の確認はご自身でお願いします。</small>',
+    unnamed_name: '名称未登録',
+    pill_unnamed: '運営者不明',
     alert_amount: 'ステーキング数量を入力してください',
+    alert_min: '委任は最低 50,000 FLR からです',
     alert_date: 'ステーキング終了日をカレンダーで選択してください',
     fail_msg: 'データの取得に失敗しました。ページをリロードして再試行してください。',
     none_msg: '条件に合うバリデータが見つかりませんでした。<br>条件を変えてお試しください。',
-    summary: (nodes,amt,dur,total,shown,all)=> nodes+'ノード中・Uptime≥99%・空き≥'+amt.toLocaleString()+' FLR・残'+dur+'日以上 の条件に合致: '+total+'件。'+(shown<total?'上位'+shown+'件を表示。':'全件表示。'),
+    summary: (nodes,amt,dur,total,shown,all)=> nodes+'ノード中・Uptime≥99%・直近の報酬実績あり・空き≥'+amt.toLocaleString()+' FLR・残'+dur+'日以上 の条件に合致: '+total+'件。'+(shown<total?'上位'+shown+'件を表示。':'全件表示。')+' 表示APRはあなたの数量を入れた後の値です。',
+    reward: (flr, d) => '見込み 約' + flr + ' FLR / ' + d + '日',
+    claim_note: '💡 報酬は2か所から別々に請求します。検証報酬（VRM）はFlare Portalのステーキング画面から約14日ごと、FTSO分（MIRROR）はエポックごとの報酬請求から受け取ります。MIRRORを請求しないと、表示APRのうちMIRROR分（多くのノードで半分前後）を取り逃します。また報酬は3.5日ごとのエポック単位で計算されるため、期間が短いと見込み額より少なくなることがあります。',
     pill_fee: (f)=> '手数料 '+f+'%',
     pill_uptime: (u)=> '稼働率 '+u.toFixed(1)+'%',
     pill_elig: (o,n)=> '報酬実績 '+o+'/'+n,
@@ -276,7 +299,7 @@ const T = {
     apr_unknown: 'APR未確定',
     apr_tip: (v,m,d)=> '検証報酬 '+v.toFixed(2)+'% ＋ FTSO分 '+m.toFixed(2)+'%'
       + (d>0.05 ? '\n（自分の参加による希薄化 -'+d.toFixed(2)+'pt を反映済み）' : ''),
-    node_label: '📋 NODE ID — FlarePortalの検索欄に貼り付け',
+    node_label: '📋 NODE ID — Flare Portalで委任先に指定するID',
     copy: 'コピー',
     copied: '✓ コピー済',
     more: (n,r)=> '▼ さらに'+n+'件表示（残り'+r+'件）',
@@ -306,13 +329,20 @@ const T = {
     rt_label: 'Recommended Validators',
     credit: 'Provided by <a href="https://lit.link/flarejapancommunity" target="_blank">Flare Japan Community</a>',
     data_live: (n) => 'P-Chain LIVE: ' + new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + ' nodes)'
-      + (APR_META ? ' / Net APR: last ' + APR_META.windowDays + 'd measured (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + ')' : ''),
+      + (APR_META ? ' / Net APR: last ' + APR_META.windowDays + 'd measured (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + ', loaded ' + fmtMD(APR_META.generatedAt) + ')' : ''),
     data_fail: (e) => 'Fetch failed: ' + e,
+    stale: (d, date) => '⚠️ APR data is ' + d + ' days old (' + date + '). It normally updates every 3–4 days. If running locally, run git pull.',
+    lbl_unnamed: 'Also show nodes with no registered name<small>The operator is not on the official provider list. The same payout-history filter still applies, but please verify the operator yourself.</small>',
+    unnamed_name: 'Unnamed node',
+    pill_unnamed: 'Unknown operator',
     alert_amount: 'Please enter a staking amount',
+    alert_min: 'The minimum delegation is 50,000 FLR',
     alert_date: 'Please select an end date from the calendar',
     fail_msg: 'Failed to fetch data. Please reload the page and try again.',
     none_msg: 'No validators found matching your criteria.<br>Try adjusting your search.',
-    summary: (nodes,amt,dur,total,shown,all)=> nodes+' nodes · Uptime≥99% · Free≥'+amt.toLocaleString()+' FLR · '+dur+'+ days: '+total+' match.'+(shown<total?' Top '+shown+' shown.':' All shown.'),
+    summary: (nodes,amt,dur,total,shown,all)=> nodes+' nodes · Uptime≥99% · recently paid · Free≥'+amt.toLocaleString()+' FLR · '+dur+'+ days: '+total+' match.'+(shown<total?' Top '+shown+' shown.':' All shown.')+' APR shown is after adding your amount.',
+    reward: (flr, d) => 'Est. ~' + flr + ' FLR / ' + d + 'd',
+    claim_note: '💡 Rewards are claimed in two separate places: validation rewards (VRM) from the Flare Portal staking page about every 14 days, and the FTSO share (MIRROR) from the per-epoch reward claim. If you never claim MIRROR you lose that part of the APR (around half for many nodes). Rewards are computed per 3.5-day epoch, so short periods may earn less than estimated.',
     pill_fee: (f)=> 'Fee '+f+'%',
     pill_uptime: (u)=> 'Uptime '+u.toFixed(1)+'%',
     pill_elig: (o,n)=> 'Paid '+o+'/'+n,
@@ -321,7 +351,7 @@ const T = {
     apr_unknown: 'APR pending',
     apr_tip: (v,m,d)=> 'Validation '+v.toFixed(2)+'% + FTSO share '+m.toFixed(2)+'%'
       + (d>0.05 ? '\n(dilution from your own stake -'+d.toFixed(2)+'pt already applied)' : ''),
-    node_label: '📋 NODE ID — Paste into FlarePortal search',
+    node_label: '📋 NODE ID — the ID to delegate to in Flare Portal',
     copy: 'Copy',
     copied: '✓ Copied',
     more: (n,r)=> '▼ Show '+n+' more ('+r+' remaining)',
@@ -371,6 +401,8 @@ function applyLang(){
   document.getElementById('calDow').innerHTML = t.cal_dow.map(d=>'<span>'+d+'</span>').join('');
   document.getElementById('cond_title').textContent = t.cond_title;
   document.getElementById('cond_list').innerHTML = t.cond_items.map(i=>'<li>'+i+'</li>').join('');
+  document.getElementById('lbl_unnamed').innerHTML = t.lbl_unnamed;
+  if(APR_META) showStaleWarning();
   document.getElementById('searchBtn').textContent = t.btn_search;
   document.getElementById('rt_label').textContent = t.rt_label;
   document.getElementById('credit').innerHTML = t.credit;
@@ -390,9 +422,28 @@ let APR_META = null;
 // build-apr.py が出力した apr.json の場所。別ホストに置く場合はここを絶対URLに変える。
 const APR_DATA_URL = 'apr.json';
 
+// エポックは3.5日ごと＋公開まで約1エポックの遅れがあるので、8日を超えたら更新が止まっている
+const STALE_DAYS = 8;
+
 function formatEndDate(unixTs) {
   const d = new Date(unixTs * 1000);
   return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
+}
+
+function fmtMD(iso) {
+  const d = new Date(iso);
+  return (d.getMonth()+1) + '/' + d.getDate();
+}
+
+function showStaleWarning() {
+  const el = document.getElementById('staleWarn');
+  const ageDays = Math.floor((Date.now() - new Date(APR_META.generatedAt).getTime()) / 86400000);
+  if (ageDays > STALE_DAYS) {
+    el.textContent = T[lang].stale(ageDays, fmtMD(APR_META.generatedAt));
+    el.classList.add('on');
+  } else {
+    el.classList.remove('on');
+  }
 }
 
 async function loadValidatorData() {
@@ -423,10 +474,10 @@ async function loadValidatorData() {
     NODES = [];
 
     for (const v of rawValidators) {
-      const nodeIdFull = v.nodeID.replace('NodeID-', '');
-      const prefix = nodeIdFull.slice(0, 12);
       const info = aprByNode[v.nodeID];
-      if (!info || !info.name) continue;
+      // 報酬実績データが無いノード（新規など）はAPRを出せないので対象外。
+      // 名称未登録のノードは残し、表示するかは検索時のチェックボックスで決める。
+      if (!info) continue;
 
       const selfBond  = parseInt(v.weight) / 1e9;
       const delegated = parseInt(v.delegatorWeight || '0') / 1e9;
@@ -447,6 +498,8 @@ async function loadValidatorData() {
 
       NODES.push({
         entity:  info.name,
+        unnamed: !info.name,
+        group:   info.entity,       // MIRRORを分け合う単位（FSPのvoter）
         apr:     info.apr,          // 手数料控除後（VRM + MIRROR）
         vrm:     info.vrm,
         mirror:  info.mirror,
@@ -459,21 +512,25 @@ async function loadValidatorData() {
         freeFLR: Math.round(freeSpace),
         minDays: daysLeft,
         endDate: formatEndDate(endTime),
-        nodeId:  prefix,
         fullNodeId: v.nodeID,
-        del:     parseInt(v.delegatorCount || '0'),
-        selfBondM: selfBond / 1000000,
-        totalStakeM: totalStake / 1000000,
         stakeFLR: totalStake,
-        knownEntity: true,
       });
     }
 
-    // APR が null（報酬データ未確定）のノードは NaN 比較にならないよう最下位に送る
-    NODES.sort((a,b) => (b.apr ?? -1) - (a.apr ?? -1) || b.freeFLR - a.freeFLR);
+    // MIRRORはエンティティのプールを全ノードで分け合うので、希薄化の分母はエンティティ合計
+    const groupStake = {};
+    for (const n of NODES) {
+      if (n.group) groupStake[n.group] = (groupStake[n.group] || 0) + n.stakeFLR;
+    }
+    for (const n of NODES) {
+      n.poolStake = n.group ? groupStake[n.group] : n.stakeFLR;
+    }
+
+    NODES.sort((a,b) => b.apr - a.apr || b.freeFLR - a.freeFLR);
 
     document.getElementById('dataDate').textContent = T[lang].data_live(NODES.length);
-    console.log('Combined: P-Chain', rawValidators.length, '+ APR data →', NODES.length, 'named nodes');
+    showStaleWarning();
+    console.log('Combined: P-Chain', rawValidators.length, '+ APR data →', NODES.length, 'nodes');
     return true;
   } catch(e) {
     console.error('Data fetch failed:', e);
@@ -489,6 +546,9 @@ async function loadValidatorData() {
 /* ── Calendar ── */
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
 const MIN_DATE = new Date(TODAY); MIN_DATE.setDate(MIN_DATE.getDate()+14);
+// 検証期間は最長365日なので、それより先を選んでも該当ノードは存在しない
+const MAX_DATE = new Date(TODAY); MAX_DATE.setDate(MAX_DATE.getDate()+365);
+const MIN_AMOUNT = 50000;
 let calYear = MIN_DATE.getFullYear();
 let calMonth = MIN_DATE.getMonth();
 let selectedDate = null;
@@ -524,7 +584,7 @@ function renderCal(){
   for(let day=1;day<=daysInMonth;day++){
     const d=document.createElement('button');
     const dt=new Date(calYear,calMonth,day);
-    const isDisabled=dt<MIN_DATE;
+    const isDisabled=dt<MIN_DATE||dt>MAX_DATE;
     const isToday=dt.getTime()===TODAY.getTime();
     const isSel=selectedDate&&dt.getTime()===selectedDate.getTime();
     d.className='cal-day'+(isDisabled?' disabled':'')+(isToday?' today':'')+(isSel?' selected':'');
@@ -590,7 +650,9 @@ async function go(){
   const duration=getDuration();
   const t = T[lang];
   if(!amount||amount<=0){alert(t.alert_amount);return;}
+  if(amount<MIN_AMOUNT){alert(t.alert_min);return;}
   if(!duration){alert(t.alert_date);return;}
+  const showUnnamed=document.getElementById('showUnnamed').checked;
 
   const btn=document.getElementById('searchBtn');
   btn.disabled=true;
@@ -603,6 +665,7 @@ async function go(){
   btn.textContent=t.btn_search;
 
   if(!ok || NODES.length === 0){
+    document.getElementById('claimNote').classList.remove('on');
     document.getElementById('summary').textContent=t.fail_msg;
     document.getElementById('rc').textContent='0';
     document.getElementById('vlist').innerHTML='';
@@ -611,7 +674,7 @@ async function go(){
   }
 
   let filtered=NODES.filter(n=>{
-    if(!n.knownEntity) return false;
+    if(n.unnamed && !showUnnamed) return false;
     if(n.uptime<99) return false;
     // 報酬適格性: 直近エポックの1/4超を取りこぼしているノードは除外。
     // uptimeが100%でも報酬ゼロのバリデータが実在するため、uptimeだけでは足りない。
@@ -622,15 +685,16 @@ async function go(){
   });
 
   // 自分が入った後のAPRに補正する。
-  // VRMはステーク比例なので不変。MIRRORはノードの取り分が概ね固定で、
-  // それを全ステーカーで分けるため、自分の分だけ薄まる。
-  //   MIRROR後 = MIRROR現在 × 現在のステーク / (現在のステーク + 自分の数量)
-  // 小さいノードほど表示APRが高く出るが、入った瞬間に下がる ── その分を先に引く。
+  // VRMはステーク比例なので不変。MIRRORはエンティティ単位のプールを
+  // そのエンティティの全ノードのステークで分けるため、自分の分だけ薄まる。
+  //   MIRROR後 = MIRROR現在 × エンティティ合計 / (エンティティ合計 + 自分の数量)
+  // 自分のステークでエンティティの重みも少し増えプールが増えるので、これはやや保守的な見積もり。
   filtered.forEach(n=>{
-    const dilution = n.stakeFLR / (n.stakeFLR + amount);
+    const dilution = n.poolStake / (n.poolStake + amount);
     n.mirrorAfter = n.mirror * dilution;
     n.aprAfter = n.vrm + n.mirrorAfter;
     n.dilutionPt = n.apr - n.aprAfter;
+    n.rewardFLR = amount * n.aprAfter / 100 * duration / 365;
   });
 
   filtered.sort((a,b)=>{
@@ -699,14 +763,12 @@ function buildCard(n, i, t){
                  n.freeM>=0.01?Math.round(n.freeM*1000)+'K':
                  n.freeFLR.toLocaleString()+' FLR';
 
-  const shortId = n.nodeId.slice(0,12);
-  const safeShort = shortId.replace(/'/g,"\\'");
-
   const feeCls = n.fee<=9?'to':n.fee<=12?'tb':'';
   const uptimeCls = n.uptime>=99.9?'tg':n.uptime>=99?'tb':'tr';
   const freeCls = n.freeM>=100?'tg':n.freeM>=10?'tb':n.freeM>=1?'':'tr';
   const eligCls = n.eligRate>=1?'tg':n.eligRate>=MIN_ELIG_RATE?'tb':'tr';
   const pills =
+    (n.unnamed ? '<span class="tag tu">'+t.pill_unnamed+'</span>' : '')+
     '<span class="tag '+feeCls+'">'+t.pill_fee(n.fee)+'</span>'+
     '<span class="tag '+uptimeCls+'">'+t.pill_uptime(n.uptime)+'</span>'+
     '<span class="tag '+eligCls+'">'+t.pill_elig(n.eligOK, n.eligOf)+'</span>'+
@@ -717,22 +779,26 @@ function buildCard(n, i, t){
     '<div class="vc-header">'+
       '<div class="rb" style="background:'+rc+'">&#35;'+(i+1)+'</div>'+
       '<div>'+
-        '<div class="vname">'+esc(n.entity)+'</div>'+
+        '<div class="vname">'+esc(n.unnamed ? t.unnamed_name : n.entity)+'</div>'+
         '<div class="tags">'+pills+'</div>'+
       '</div>'+
       '<div class="vstats">'+
-        '<div class="apr" title="'+t.apr_tip(n.vrm, n.mirrorAfter, n.dilutionPt)+'">'+
-          (n.aprAfter !== null && n.aprAfter !== undefined ? n.aprAfter.toFixed(1)+'%' : '---')+'</div>'+
-        '<div class="apr-lbl">'+(n.aprAfter ? t.apr_label : t.apr_unknown)+'</div>'+
+        '<div class="apr" title="'+t.apr_tip(n.vrm, n.mirrorAfter, n.dilutionPt)+'">'+n.aprAfter.toFixed(1)+'%</div>'+
+        '<div class="apr-lbl">'+t.apr_label+'</div>'+
+        '<div class="reward">'+t.reward(Math.round(n.rewardFLR).toLocaleString(), lastDuration)+'</div>'+
       '</div>'+
     '</div>'+
     '<div class="node-block">'+
       '<div class="node-block-label">'+t.node_label+'</div>'+
       '<div class="node-id-row">'+
-        '<div class="node-id-text" onclick="copyNode(\''+safeShort+'\',document.getElementById(\'cb'+i+'\'))">'+esc(shortId)+'</div>'+
-        '<button class="copy-btn" id="cb'+i+'" onclick="copyNode(\''+safeShort+'\',this)">'+t.copy+'</button>'+
+        '<div class="node-id-text node-full">'+esc(n.fullNodeId)+'</div>'+
+        '<button class="copy-btn">'+t.copy+'</button>'+
       '</div>'+
     '</div>';
+  // NodeIDは委任先そのもの。短縮せずフルで、インラインJSを使わずにコピーする
+  const btn = d.querySelector('.copy-btn');
+  btn.addEventListener('click', ()=>copyNode(n.fullNodeId, btn));
+  d.querySelector('.node-id-text').addEventListener('click', ()=>copyNode(n.fullNodeId, btn));
   return d;
 }
 
@@ -748,6 +814,10 @@ function render(){
 
   const list=document.getElementById('vlist');
   list.innerHTML='';
+
+  const note=document.getElementById('claimNote');
+  note.textContent=t.claim_note;
+  note.classList.toggle('on', top.length>0);
 
   if(!top.length){
     list.innerHTML='<p class="none-msg">'+t.none_msg+'</p>';

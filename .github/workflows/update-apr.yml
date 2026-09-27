@@ -14,13 +14,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
+      # ランナー標準の python3 を使う（標準ライブラリのみで動くので setup-python は不要）
       - name: Build apr.json
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 build-apr.py -o apr.json
 
       - name: Commit if changed
