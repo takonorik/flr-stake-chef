@@ -121,6 +121,26 @@ def network_mirror_pool(mirror, weights) -> float:
     return (sum(mirror.get(h, 0.0) for h in weights) / total_w) if total_w else 0.0
 
 
+def choose_window(pools: dict, window: int, threshold: float = REGIME_BREAK):
+    """直近 window エポックを基本に、その中で原資の段差があれば段差以降だけに縮める。
+    戻り値: (採用するエポックのリスト, 段差を検出したエポック or None)"""
+    ordered = sorted(pools)
+    start = ordered[max(0, len(ordered) - window)]
+    for i in range(len(ordered) - 1, 0, -1):
+        prev, cur = pools[ordered[i - 1]], pools[ordered[i]]
+        if prev > 0 and abs(cur - prev) / prev > threshold:
+            if ordered[i] > start:
+                return [e for e in ordered if e >= ordered[i]], ordered[i]
+            break
+    return [e for e in ordered if e >= start], None
+
+
+def unchanged(prev: dict, payload: dict) -> bool:
+    """生成時刻以外が同じか"""
+    strip = lambda d: {k: v for k, v in d.items() if k != "generatedAt"}
+    return strip(prev) == strip(payload)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("-o", "--out", default="apr.json")
@@ -148,17 +168,11 @@ def main() -> int:
 
     # --- 制度変更の検出: ネットワークMIRROR原資が段差を作った直近の位置を探す ---
     pools = {e: network_mirror_pool(loaded[e][1], loaded[e][2]) for e in loaded}
-    ordered = sorted(loaded)
-    start = ordered[max(0, len(ordered) - args.window)]
-    for i in range(len(ordered) - 1, 0, -1):
-        prev, cur = pools[ordered[i - 1]], pools[ordered[i]]
-        if prev > 0 and abs(cur - prev) / prev > REGIME_BREAK:
-            if ordered[i] > start:
-                start = ordered[i]
-                print(f"  制度変更を検出 (epoch {ordered[i]}: MIRROR原資 "
-                      f"{cur / prev:.2f}倍) → 窓を epoch {start} 以降に短縮", file=sys.stderr)
-            break
-    window = [e for e in ordered if e >= start]
+    window, brk = choose_window(pools, args.window)
+    if brk is not None:
+        prev_e = max(e for e in pools if e < brk)
+        print(f"  制度変更を検出 (epoch {brk}: MIRROR原資 {pools[brk] / pools[prev_e]:.2f}倍)"
+              f" → 窓を epoch {brk} 以降に短縮", file=sys.stderr)
 
     # --- ノード単位で集計 ---
     acc = defaultdict(lambda: {"rew": 0.0, "amt": 0.0, "mir": 0.0, "wt": 0.0,
@@ -220,8 +234,7 @@ def main() -> int:
     try:
         with open(args.out) as f:
             prev = json.load(f)
-        if {k: v for k, v in prev.items() if k != "generatedAt"} == \
-           {k: v for k, v in payload.items() if k != "generatedAt"}:
+        if unchanged(prev, payload):
             print(f"\n変更なし（epoch {window[0]}〜{window[-1]} のまま）。"
                   f"{args.out} は書き換えません。", file=sys.stderr)
             return 0

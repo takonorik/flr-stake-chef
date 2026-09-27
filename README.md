@@ -63,12 +63,25 @@ python3 build-apr.py -o apr.json
 
 ## ローカルで動かす
 
-`apr.json` を fetch するため `file://` では動きません。最新の `apr.json` は
-GitHub Actions がリポジトリに反映するので、手元では先に `git pull` してください。
+`apr.json` を fetch するため `file://` では動きません。付属の `serve.py` で配信します。
+`serve.py` は `apr.json` を配信する前に（30分に1回まで）`git pull` するので、
+GitHub Actions が更新した最新データが自動で入ります。
 
 ```bash
-git pull && python3 -m http.server 8765
+/usr/bin/python3 serve.py
 ```
+
+→ http://localhost:8765/
+
+### ログイン時に自動起動する（任意）
+
+```bash
+scripts/autostart.sh install     # 導入
+scripts/autostart.sh status      # 状況
+scripts/autostart.sh uninstall   # 削除
+```
+
+`~/Library/Application Support/FlareStakeChef` に専用のクローンを作り、launchd で常駐させます。
 
 → http://localhost:8765/
 

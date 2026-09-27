@@ -140,6 +140,7 @@ select option{background:#ffffff}
 .claim-note.on{display:block}
 .reward{font-family:'Space Mono',monospace;font-size:.66rem;color:var(--text);margin-top:3px}
 .tu{background:rgba(138,138,154,.15);color:#6b6b7b}
+.mb{display:inline-block;vertical-align:middle;margin-left:8px;padding:2px 7px;border-radius:4px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);color:#15803d;font-family:'Space Mono',monospace;font-size:.58rem;font-weight:700;letter-spacing:.06em;cursor:help}
 .node-full{font-size:.72rem;letter-spacing:.02em;word-break:break-all}
 .data-note{font-size:.62rem;color:var(--muted);text-align:center;margin-top:12px}
 .data-note a{color:var(--muted);text-decoration:none;border-bottom:1px dotted var(--muted)}
@@ -276,13 +277,14 @@ const T = {
     btn_loading: '🔄 データ取得中...',
     rt_label: 'おすすめバリデータ',
     credit: 'Provided by <a href="https://lit.link/flarejapancommunity" target="_blank">Flare Japan Community</a>',
-    data_live: (n) => 'P-Chain LIVE: ' + new Date().toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + 'ノード取得)'
+    data_live: (n) => 'P-Chain LIVE: ' + new Date(loadedAt).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + 'ノード取得)'
       + (APR_META ? ' ／ 実質APR: 直近' + APR_META.windowDays + '日の実績 (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + '、' + fmtMD(APR_META.generatedAt) + '取込)' : ''),
     data_fail: (e) => 'データ取得失敗: ' + e,
     stale: (d, date) => '⚠️ APRデータが' + d + '日前（' + date + '）のままです。通常は3〜4日ごとに更新されます。手元で開いている場合は git pull で最新化してください。',
     lbl_unnamed: '名称未登録のノードも表示する<small>運営者名が公式リストに無いノードです。報酬実績の条件は同じく適用しますが、運営者の確認はご自身でお願いします。</small>',
     unnamed_name: '名称未登録',
     pill_unnamed: '運営者不明',
+    mirror_tip: (m) => 'FTSO分（MIRROR）の報酬あり：+' + m.toFixed(2) + '%（Portalのエポック報酬請求で受け取り）',
     alert_amount: 'ステーキング数量を入力してください',
     alert_min: '委任は最低 50,000 FLR からです',
     alert_date: 'ステーキング終了日をカレンダーで選択してください',
@@ -328,13 +330,14 @@ const T = {
     btn_loading: '🔄 Fetching data...',
     rt_label: 'Recommended Validators',
     credit: 'Provided by <a href="https://lit.link/flarejapancommunity" target="_blank">Flare Japan Community</a>',
-    data_live: (n) => 'P-Chain LIVE: ' + new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + ' nodes)'
+    data_live: (n) => 'P-Chain LIVE: ' + new Date(loadedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + ' nodes)'
       + (APR_META ? ' / Net APR: last ' + APR_META.windowDays + 'd measured (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + ', loaded ' + fmtMD(APR_META.generatedAt) + ')' : ''),
     data_fail: (e) => 'Fetch failed: ' + e,
     stale: (d, date) => '⚠️ APR data is ' + d + ' days old (' + date + '). It normally updates every 3–4 days. If running locally, run git pull.',
     lbl_unnamed: 'Also show nodes with no registered name<small>The operator is not on the official provider list. The same payout-history filter still applies, but please verify the operator yourself.</small>',
     unnamed_name: 'Unnamed node',
     pill_unnamed: 'Unknown operator',
+    mirror_tip: (m) => 'Earns the FTSO share (MIRROR): +' + m.toFixed(2) + '% (claimed via the per-epoch reward claim in Portal)',
     alert_amount: 'Please enter a staking amount',
     alert_min: 'The minimum delegation is 50,000 FLR',
     alert_date: 'Please select an end date from the calendar',
@@ -390,7 +393,7 @@ function applyLang(){
     document.getElementById('calLabel').textContent = t.cal_select;
   } else {
     // Re-render selected date label in current language
-    const diff = Math.round((selectedDate - TODAY) / 86400000);
+    const diff = daysFromToday(selectedDate);
     const mo = (selectedDate.getMonth()+1)+'';
     const da = selectedDate.getDate()+'';
     document.getElementById('calLabel').textContent =
@@ -446,7 +449,13 @@ function showStaleWarning() {
   }
 }
 
+// P-Chainの応答は約4MB（全委任者を含む）で2〜3秒かかる。条件を変えて検索し直すたびに
+// 取り直さないよう、5分間は取得済みのデータを使い回す。
+const CACHE_MS = 5 * 60 * 1000;
+let loadedAt = 0;
+
 async function loadValidatorData() {
+  if (NODES.length && Date.now() - loadedAt < CACHE_MS) return true;
   try {
     /* ── Step 1: 実質APRデータを取得 ──
        Flare財団が公開する実支払記録から算出済み。委任者の手取り（手数料控除後）。
@@ -528,6 +537,7 @@ async function loadValidatorData() {
 
     NODES.sort((a,b) => b.apr - a.apr || b.freeFLR - a.freeFLR);
 
+    loadedAt = Date.now();
     document.getElementById('dataDate').textContent = T[lang].data_live(NODES.length);
     showStaleWarning();
     console.log('Combined: P-Chain', rawValidators.length, '+ APR data →', NODES.length, 'nodes');
@@ -536,6 +546,7 @@ async function loadValidatorData() {
     console.error('Data fetch failed:', e);
     document.getElementById('dataDate').textContent = T[lang].data_fail(e.message);
     NODES = [];
+    loadedAt = 0;
     return false;
   }
 }
@@ -544,16 +555,19 @@ async function loadValidatorData() {
 
 
 /* ── Calendar ── */
-const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const MIN_DATE = new Date(TODAY); MIN_DATE.setDate(MIN_DATE.getDate()+14);
+const MIN_DAYS = 14;
 // 検証期間は最長365日なので、それより先を選んでも該当ノードは存在しない
-const MAX_DATE = new Date(TODAY); MAX_DATE.setDate(MAX_DATE.getDate()+365);
+const MAX_DAYS = 365;
 const MIN_AMOUNT = 50000;
-let calYear = MIN_DATE.getFullYear();
-let calMonth = MIN_DATE.getMonth();
+
+// ページを開いたまま日付をまたいでもずれないよう、毎回その時点の「今日」を使う
+function today(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function daysFromToday(d){ return Math.round((d - today()) / 86400000); }
+
+let calYear = addDays(today(), MIN_DAYS).getFullYear();
+let calMonth = addDays(today(), MIN_DAYS).getMonth();
 let selectedDate = null;
-
-
 
 function toggleCal(){
   document.getElementById('calPopup').classList.toggle('open');
@@ -581,11 +595,12 @@ function renderCal(){
     const e=document.createElement('div');e.className='cal-day empty';grid.appendChild(e);
   }
   const daysInMonth = new Date(calYear,calMonth+1,0).getDate();
+  const t0 = today(), minD = addDays(t0, MIN_DAYS), maxD = addDays(t0, MAX_DAYS);
   for(let day=1;day<=daysInMonth;day++){
     const d=document.createElement('button');
     const dt=new Date(calYear,calMonth,day);
-    const isDisabled=dt<MIN_DATE||dt>MAX_DATE;
-    const isToday=dt.getTime()===TODAY.getTime();
+    const isDisabled=dt<minD||dt>maxD;
+    const isToday=dt.getTime()===t0.getTime();
     const isSel=selectedDate&&dt.getTime()===selectedDate.getTime();
     d.className='cal-day'+(isDisabled?' disabled':'')+(isToday?' today':'')+(isSel?' selected':'');
     d.textContent=day;
@@ -600,7 +615,7 @@ function renderCal(){
 
 function selectDate(dt){
   selectedDate=dt;
-  const diff=Math.round((dt-TODAY)/86400000);
+  const diff=daysFromToday(dt);
   const mo=(dt.getMonth()+1)+'';
   const da=dt.getDate()+'';
   document.getElementById('calLabel').textContent=
@@ -612,7 +627,7 @@ function selectDate(dt){
 
 function getDuration(){
   if(!selectedDate) return null;
-  return Math.round((selectedDate-TODAY)/86400000);
+  return daysFromToday(selectedDate);
 }
 
 
@@ -623,8 +638,6 @@ function toggleDisclaimer(){
   body.classList.toggle('open');
 }
 
-const AF=new Set(['uptime','space','stable']);
-function tog(el){const f=el.dataset.f;if(AF.has(f)){AF.delete(f);el.classList.remove('on');}else{AF.add(f);el.classList.add('on');}}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function copyNode(text, btn){
@@ -651,7 +664,8 @@ async function go(){
   const t = T[lang];
   if(!amount||amount<=0){alert(t.alert_amount);return;}
   if(amount<MIN_AMOUNT){alert(t.alert_min);return;}
-  if(!duration){alert(t.alert_date);return;}
+  // 数日前に選んだ日付のまま開きっぱなしだと14日を切ることがある
+  if(!duration||duration<MIN_DAYS||duration>MAX_DAYS){alert(t.alert_date);return;}
   const showUnnamed=document.getElementById('showUnnamed').checked;
 
   const btn=document.getElementById('searchBtn');
@@ -718,47 +732,50 @@ let lastAmount = 0;
 let lastDuration = 0;
 let showCount = 10;
 
-function showMore(){
-  const prevCount = showCount;
-  showCount += 10;
-  const t = T[lang];
+function renderMeta(t){
   const total = lastFiltered.length;
-  const top = lastFiltered.slice(0, showCount);
-  const remaining = total - top.length;
-  const list = document.getElementById('vlist');
-
-  // Remove existing more-button
-  const oldBtn = list.querySelector('.more-btn');
-  if(oldBtn) oldBtn.remove();
-
-  // Append only the NEW cards
-  const newItems = lastFiltered.slice(prevCount, showCount);
-  newItems.forEach(function(n, idx){
-    const i = prevCount + idx;
-    list.appendChild(buildCard(n, i, t));
-  });
-
-  // Update summary/count
+  const shown = Math.min(showCount, total);
   document.getElementById('summary').textContent=
-    t.summary(NODES.length, lastAmount, lastDuration, total, top.length, total);
-  document.getElementById('rc').textContent=t.rc(top.length, total);
-
-  // Re-add more-button if needed
-  if(remaining > 0){
-    const moreBtn = document.createElement('button');
-    moreBtn.className = 'more-btn';
-    moreBtn.textContent = t.more(Math.min(remaining, 10), remaining);
-    moreBtn.onclick = showMore;
-    list.appendChild(moreBtn);
-  }
+    t.summary(NODES.length, lastAmount, lastDuration, total, shown, total);
+  document.getElementById('rc').textContent=t.rc(shown, total);
 }
 
-function buildCard(n, i, t){
+function appendCards(list, from, to, t){
+  lastFiltered.slice(from, to).forEach((n, k)=>list.appendChild(buildCard(n, from + k, k, t)));
+}
+
+function renderMoreButton(list, t){
+  const old = list.querySelector('.more-btn');
+  if(old) old.remove();
+  const remaining = lastFiltered.length - Math.min(showCount, lastFiltered.length);
+  if(remaining <= 0) return;
+  const moreBtn = document.createElement('button');
+  moreBtn.className = 'more-btn';
+  moreBtn.textContent = t.more(Math.min(remaining, 10), remaining);
+  moreBtn.onclick = showMore;
+  list.appendChild(moreBtn);
+}
+
+function showMore(){
+  const t = T[lang];
+  const list = document.getElementById('vlist');
+  const from = showCount;
+  showCount += 10;
+  appendCards(list, from, showCount, t);
+  renderMeta(t);
+  renderMoreButton(list, t);
+}
+
+// rank: 全体での順位(0始まり) / delayIdx: 今回追加した中での順番（アニメーションの遅延用）
+function buildCard(n, rank, delayIdx, t){
+  const i = rank;
   const d=document.createElement('div');
   d.className='vc'+(i===0?' best':'');
-  d.style.animationDelay=(i*.06)+'s';
+  d.style.animationDelay=(delayIdx*.06)+'s';
 
   const rc=RANK_COLORS[i]||'#555';
+  // Portalの検索は「NodeID-」を含めるとヒットしないので、本体部分だけを表示・コピーする
+  const idBody = n.fullNodeId.replace(/^NodeID-/, '');
   const freeDisp=n.freeM>=1?n.freeM.toFixed(1)+'M':
                  n.freeM>=0.01?Math.round(n.freeM*1000)+'K':
                  n.freeFLR.toLocaleString()+' FLR';
@@ -779,7 +796,8 @@ function buildCard(n, i, t){
     '<div class="vc-header">'+
       '<div class="rb" style="background:'+rc+'">&#35;'+(i+1)+'</div>'+
       '<div>'+
-        '<div class="vname">'+esc(n.unnamed ? t.unnamed_name : n.entity)+'</div>'+
+        '<div class="vname">'+esc(n.unnamed ? t.unnamed_name : n.entity)+
+          (n.mirror > 0 ? '<span class="mb" title="'+t.mirror_tip(n.mirrorAfter)+'">MIRROR</span>' : '')+'</div>'+
         '<div class="tags">'+pills+'</div>'+
       '</div>'+
       '<div class="vstats">'+
@@ -791,53 +809,32 @@ function buildCard(n, i, t){
     '<div class="node-block">'+
       '<div class="node-block-label">'+t.node_label+'</div>'+
       '<div class="node-id-row">'+
-        '<div class="node-id-text node-full">'+esc(n.fullNodeId)+'</div>'+
+        '<div class="node-id-text node-full">'+esc(idBody)+'</div>'+
         '<button class="copy-btn">'+t.copy+'</button>'+
       '</div>'+
     '</div>';
-  // NodeIDは委任先そのもの。短縮せずフルで、インラインJSを使わずにコピーする
   const btn = d.querySelector('.copy-btn');
-  btn.addEventListener('click', ()=>copyNode(n.fullNodeId, btn));
-  d.querySelector('.node-id-text').addEventListener('click', ()=>copyNode(n.fullNodeId, btn));
+  btn.addEventListener('click', ()=>copyNode(idBody, btn));
+  d.querySelector('.node-id-text').addEventListener('click', ()=>copyNode(idBody, btn));
   return d;
 }
 
 function render(){
   const t = T[lang];
-  const total = lastFiltered.length;
-  const top = lastFiltered.slice(0, showCount);
-  const remaining = total - top.length;
-
-  document.getElementById('summary').textContent=
-    t.summary(NODES.length, lastAmount, lastDuration, total, top.length, total);
-  document.getElementById('rc').textContent=t.rc(top.length, total);
-
   const list=document.getElementById('vlist');
   list.innerHTML='';
+  renderMeta(t);
 
   const note=document.getElementById('claimNote');
   note.textContent=t.claim_note;
-  note.classList.toggle('on', top.length>0);
+  note.classList.toggle('on', lastFiltered.length>0);
 
-  if(!top.length){
+  if(!lastFiltered.length){
     list.innerHTML='<p class="none-msg">'+t.none_msg+'</p>';
-    document.getElementById('results').classList.add('on');
-    return;
+  } else {
+    appendCards(list, 0, showCount, t);
+    renderMoreButton(list, t);
   }
-
-  top.forEach(function(n,i){
-    list.appendChild(buildCard(n, i, t));
-  });
-
-  // 「さらに表示」ボタン
-  if(remaining > 0){
-    const moreBtn = document.createElement('button');
-    moreBtn.className = 'more-btn';
-    moreBtn.textContent = t.more(Math.min(remaining, 10), remaining);
-    moreBtn.onclick = showMore;
-    list.appendChild(moreBtn);
-  }
-
   document.getElementById('results').classList.add('on');
 }
 

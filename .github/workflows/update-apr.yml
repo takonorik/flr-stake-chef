@@ -17,6 +17,9 @@ jobs:
       - uses: actions/checkout@v5
 
       # ランナー標準の python3 を使う（標準ライブラリのみで動くので setup-python は不要）
+      - name: Test
+        run: python3 -m unittest discover -s tests
+
       - name: Build apr.json
         env:
           GITHUB_TOKEN: ${{ github.token }}
