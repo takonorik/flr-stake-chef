@@ -20,7 +20,8 @@ DOMAIN="gui/$(id -u)"
 
 install() {
   if [ -d "$APP_DIR/.git" ]; then
-    git -C "$APP_DIR" pull --ff-only -q
+    git -C "$APP_DIR" fetch -q origin
+    git -C "$APP_DIR" reset -q --hard origin/main
   else
     mkdir -p "$(dirname "$APP_DIR")"
     git clone -q "$REPO" "$APP_DIR"
@@ -39,6 +40,10 @@ install() {
     <string>$APP_DIR/serve.py</string>
   </array>
   <key>WorkingDirectory</key><string>$APP_DIR</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>STAKECHEF_MIRROR</key><string>1</string>
+  </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>$LOG</string>

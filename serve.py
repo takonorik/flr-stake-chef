@@ -19,6 +19,9 @@ import time
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8765"))
 PULL_INTERVAL_SEC = 30 * 60
+# 常駐用の専用クローン（scripts/autostart.sh が設定）は手元で編集しないので、
+# GitHubと完全に一致させる。履歴が書き換わっても止まらない。作業用フォルダでは使わないこと。
+MIRROR_MODE = os.environ.get("STAKECHEF_MIRROR") == "1"
 
 _last_pull = 0.0
 _lock = threading.Lock()
@@ -45,15 +48,20 @@ def maybe_pull() -> None:
             return
         _last_pull = time.time()
         try:
-            r = git("pull", "--ff-only", "-q")
+            if MIRROR_MODE:
+                r = git("fetch", "-q", "origin")
+                if r.returncode == 0:
+                    r = git("reset", "-q", "--hard", "origin/main")
+            else:
+                r = git("pull", "--ff-only", "-q")
         except (OSError, subprocess.TimeoutExpired) as ex:
             log(f"git pull 失敗: {ex}（手元のデータのまま配信します）")
             return
         if r.returncode == 0:
             head = git("log", "-1", "--format=%h %s").stdout.strip()
-            log(f"git pull OK → {head}")
+            log(f"更新OK → {head}")
         else:
-            log(f"git pull 失敗: {r.stderr.strip()[:300]}（手元のデータのまま配信します）")
+            log(f"更新失敗: {r.stderr.strip()[:300]}（手元のデータのまま配信します）")
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
