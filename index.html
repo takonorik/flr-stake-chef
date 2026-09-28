@@ -141,7 +141,7 @@ select option{background:#ffffff}
 .reward{font-family:'Space Mono',monospace;font-size:.66rem;color:var(--text);margin-top:3px}
 .tu{background:rgba(138,138,154,.15);color:#6b6b7b}
 .mb{display:inline-block;vertical-align:middle;margin-left:8px;padding:2px 7px;border-radius:4px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);color:#15803d;font-family:'Space Mono',monospace;font-size:.58rem;font-weight:700;letter-spacing:.06em;cursor:help}
-.node-full{font-size:.72rem;letter-spacing:.02em;word-break:break-all}
+.node-full{padding:0 12px 10px;font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted);word-break:break-all}
 .data-note{font-size:.62rem;color:var(--muted);text-align:center;margin-top:12px}
 .data-note a{color:var(--muted);text-decoration:none;border-bottom:1px dotted var(--muted)}
 .none-msg{color:var(--muted);font-size:.83rem;padding:20px 0;text-align:center}
@@ -301,7 +301,8 @@ const T = {
     apr_unknown: 'APR未確定',
     apr_tip: (v,m,d)=> '検証報酬 '+v.toFixed(2)+'% ＋ FTSO分 '+m.toFixed(2)+'%'
       + (d>0.05 ? '\n（自分の参加による希薄化 -'+d.toFixed(2)+'pt を反映済み）' : ''),
-    node_label: '📋 NODE ID — Flare Portalで委任先に指定するID',
+    node_label: '📋 NODE ID — Flare Portalの検索欄に貼り付け',
+    node_full: '照合用フルID:',
     copy: 'コピー',
     copied: '✓ コピー済',
     more: (n,r)=> '▼ さらに'+n+'件表示（残り'+r+'件）',
@@ -356,7 +357,8 @@ const T = {
     apr_unknown: 'APR pending',
     apr_tip: (v,m,d)=> 'Validation '+v.toFixed(2)+'% + FTSO share '+m.toFixed(2)+'%'
       + (d>0.05 ? '\n(dilution from your own stake -'+d.toFixed(2)+'pt already applied)' : ''),
-    node_label: '📋 NODE ID — the ID to delegate to in Flare Portal',
+    node_label: '📋 NODE ID — paste into Flare Portal search',
+    node_full: 'Full ID to verify:',
     copy: 'Copy',
     copied: '✓ Copied',
     more: (n,r)=> '▼ Show '+n+' more ('+r+' remaining)',
@@ -778,8 +780,10 @@ function buildCard(n, rank, delayIdx, t){
   d.style.animationDelay=(delayIdx*.06)+'s';
 
   const rc=RANK_COLORS[i]||'#555';
-  // Portalの検索は「NodeID-」を含めるとヒットしないので、本体部分だけを表示・コピーする
+  // Portalの検索は「NodeID-」付きやフルIDではヒットせず、本体の先頭12文字なら通る。
+  // コピーはその12文字、下にフルIDを小さく出して、検索結果との照合に使ってもらう。
   const idBody = n.fullNodeId.replace(/^NodeID-/, '');
+  const searchId = idBody.slice(0, 12);
   const freeDisp=n.freeM>=1?n.freeM.toFixed(1)+'M':
                  n.freeM>=0.01?Math.round(n.freeM*1000)+'K':
                  n.freeFLR.toLocaleString()+' FLR';
@@ -813,13 +817,14 @@ function buildCard(n, rank, delayIdx, t){
     '<div class="node-block">'+
       '<div class="node-block-label">'+t.node_label+'</div>'+
       '<div class="node-id-row">'+
-        '<div class="node-id-text node-full">'+esc(idBody)+'</div>'+
+        '<div class="node-id-text">'+esc(searchId)+'</div>'+
         '<button class="copy-btn">'+t.copy+'</button>'+
       '</div>'+
+      '<div class="node-full">'+t.node_full+' '+esc(n.fullNodeId)+'</div>'+
     '</div>';
   const btn = d.querySelector('.copy-btn');
-  btn.addEventListener('click', ()=>copyNode(idBody, btn));
-  d.querySelector('.node-id-text').addEventListener('click', ()=>copyNode(idBody, btn));
+  btn.addEventListener('click', ()=>copyNode(searchId, btn));
+  d.querySelector('.node-id-text').addEventListener('click', ()=>copyNode(searchId, btn));
   return d;
 }
 
