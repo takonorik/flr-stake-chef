@@ -215,12 +215,19 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
 .disc-toggle .disc-arrow{display:inline-block;transition:transform .25s;margin-right:4px;font-size:.6rem}
 .disc-toggle.open .disc-arrow{transform:rotate(90deg)}
 .disc-body{max-height:0;overflow:hidden;opacity:0;transition:max-height .35s ease,opacity .3s ease}
-.disc-body.open{max-height:1000px;opacity:1}
+.disc-body.open{max-height:3000px;opacity:1}
 .disc-inner{margin-top:8px;text-align:left;background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:14px 18px}
 .disc-inner ul{list-style:none;display:flex;flex-direction:column;gap:8px}
 .disc-inner li{font-size:.72rem;color:var(--muted);line-height:1.65;padding-left:16px;position:relative}
 .disc-inner li::before{content:"・";position:absolute;left:0;color:var(--pink);font-weight:900}
 .disc-inner a{color:var(--pink);font-weight:700}
+.disc-inner.method h4{font-size:.8rem;font-weight:900;margin:12px 0 4px}
+.disc-inner.method h4:first-child{margin-top:0}
+.disc-inner.method p,.disc-inner.method li{font-size:.74rem;line-height:1.7;color:var(--muted)}
+.disc-inner.method ul{list-style:none;display:flex;flex-direction:column;gap:4px}
+.disc-inner.method li{padding-left:14px;position:relative}
+.disc-inner.method li::before{content:"・";position:absolute;left:0;color:var(--pink)}
+.disc-inner.method b{color:var(--text)}
 </style>
 </head>
 <body>
@@ -356,10 +363,14 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
     <p class="credit" id="credit"></p>
     <div class="disclaimer">
       <button class="disc-toggle" id="discToggle" onclick="toggleDisclaimer()"><span class="disc-arrow">▶</span> <span id="disc_label"></span></button>
+      <button class="disc-toggle" id="methodToggle" onclick="toggleMethod()"><span class="disc-arrow">▶</span> <span id="method_label"></span></button>
       <div class="disc-body" id="discBody">
         <div class="disc-inner">
           <ul id="disc_list"></ul>
         </div>
+      </div>
+      <div class="disc-body" id="methodBody">
+        <div class="disc-inner method" id="method_body"></div>
       </div>
     </div>
   </footer>
@@ -445,7 +456,23 @@ const T = {
     rc: (s,t)=> s+' / '+t+'件',
     ends: (d,dl)=> d+'（残'+dl+'日）',
     disc_label: '免責事項',
+    method_label: '計算方法',
+    method_html: '<h4>ステーキング（Stake Chef）</h4>'+
+      '<p><b>実質APR ＝ ステーキング報酬 ＋ MIRROR上乗せ</b>（どちらも手数料控除後）</p>'+
+      '<ul><li>ステーキング報酬：委任者に実際に支払われた額 ÷ 委任額</li>'+
+      '<li>MIRROR上乗せ：ノードへのMIRROR報酬請求額 ÷ ミラー済みステーク</li>'+
+      '<li>直近4リワードエポック（14日、Flare公式の請求サイクル1回分）の実績を年率化（×365.25÷3.5）。制度変更で原資が大きく動いた場合は、変更後のエポックだけで計算</li>'+
+      '<li>「あなたが預けた後の値」：自分の数量が加わってMIRRORが薄まる分を、原資の連動度の実測値で補正</li>'+
+      '<li>対象：稼働率99%以上、かつ直近4エポック中3回以上報酬対象だったノード。空き容量と残り日数はP-Chainからリアルタイム取得</li></ul>'+
+      '<h4>デリゲート（Delegate Bear）</h4>'+
+      '<p><b>実質APR ＝ プロバイダーのデリゲート報酬請求額 ÷ 委任総額</b>（手数料控除後、同じく直近4エポックを年率化）</p>'+
+      '<h4>データの出典</h4>'+
+      '<ul><li><a href="https://github.com/flare-foundation/reward-scripts" target="_blank" rel="noopener">flare-foundation/reward-scripts</a>（ステーキング報酬の支払記録）</li>'+
+      '<li><a href="https://github.com/flare-foundation/fsp-rewards" target="_blank" rel="noopener">flare-foundation/fsp-rewards</a>（MIRROR・デリゲート報酬の支払記録）</li>'+
+      '<li>Flare P-Chain（空き容量・残り日数）</li></ul>',
     disc_items: [
+      '本ツールは特定のバリデータ・プロバイダーを推奨するものではありません。表示順は、計算上の実質APRの高い順です。',
+      '本ツールの提供者・関係者は、バリデータやFTSOを運営しておらず、掲載しているバリデータ・プロバイダーから対価を受け取っていません。',
       '本ツールの利用により生じたいかなる損害・不利益についても、開発者および提供者は一切の責任を負いかねます。',
       '本ツールは情報提供を目的としており、投資助言・推奨を行うものではありません。',
       '空き容量・残り日数はP-Chainからリアルタイムに取得しています。実質APRと見込み額は、Flare財団が公開する直近14日間の支払実績から算出した参考値であり、将来の利回りを保証するものではありません。',
@@ -530,7 +557,23 @@ const T = {
     rc: (s,t)=> s+' / '+t,
     ends: (d,dl)=> d+' ('+dl+'d left)',
     disc_label: 'Disclaimer',
+    method_label: 'How it is calculated',
+    method_html: '<h4>Staking (Stake Chef)</h4>'+
+      '<p><b>Net APR = staking reward + MIRROR bonus</b> (both after fees)</p>'+
+      '<ul><li>Staking reward: amount actually paid to delegators ÷ amount delegated</li>'+
+      '<li>MIRROR bonus: MIRROR reward claimed for the node ÷ mirrored stake</li>'+
+      '<li>Annualized from the last 4 reward epochs (14 days, one official claim cycle) × 365.25 ÷ 3.5. If a protocol change moved the reward pool sharply, only epochs after the change are used</li>'+
+      '<li>“After adding your stake”: MIRROR dilution from your own stake, corrected with the measured responsiveness of the reward pool</li>'+
+      '<li>Included: uptime ≥ 99% and paid in at least 3 of the last 4 epochs. Free capacity and remaining days are live from the P-Chain</li></ul>'+
+      '<h4>Delegation (Delegate Bear)</h4>'+
+      '<p><b>Net APR = delegation reward claimed by the provider ÷ total delegated</b> (after fees, same 4-epoch annualization)</p>'+
+      '<h4>Data sources</h4>'+
+      '<ul><li><a href="https://github.com/flare-foundation/reward-scripts" target="_blank" rel="noopener">flare-foundation/reward-scripts</a> (staking reward payouts)</li>'+
+      '<li><a href="https://github.com/flare-foundation/fsp-rewards" target="_blank" rel="noopener">flare-foundation/fsp-rewards</a> (MIRROR and delegation reward payouts)</li>'+
+      '<li>Flare P-Chain (free capacity, remaining days)</li></ul>',
     disc_items: [
+      'This tool does not recommend any validator or provider. Results are ordered by calculated net APR.',
+      'The people behind this tool do not run any validator or FTSO and receive no compensation from any validator or provider listed.',
       'The developers and providers assume no liability for any losses or damages arising from the use of this tool.',
       'This tool is for informational purposes only and does not constitute investment advice or recommendations.',
       'Free capacity and remaining days are fetched live from the P-Chain. Net APR and estimated rewards are reference values computed from the last 14 days of payouts published by the Flare Foundation, and do not guarantee future returns.',
@@ -599,6 +642,8 @@ function applyLang(){
   document.getElementById('rt_label').textContent = t.rt_label;
   document.getElementById('credit').innerHTML = t.credit;
   document.getElementById('disc_label').textContent = t.disc_label;
+  document.getElementById('method_label').textContent = t.method_label;
+  document.getElementById('method_body').innerHTML = t.method_html;
   document.getElementById('disc_list').innerHTML = t.disc_items.map(item => {
     const isContact = item.endsWith('|contact');
     const text = item.replace('|contact','');
@@ -885,6 +930,11 @@ function getDuration(){
   return daysFromToday(selectedDate);
 }
 
+
+function toggleMethod(){
+  document.getElementById('methodToggle').classList.toggle('open');
+  document.getElementById('methodBody').classList.toggle('open');
+}
 
 function toggleDisclaimer(){
   const btn = document.getElementById('discToggle');
