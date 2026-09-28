@@ -22,6 +22,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import math
 import os
 import statistics
 import sys
@@ -135,6 +136,43 @@ def choose_window(pools: dict, window: int, threshold: float = REGIME_BREAK):
     return [e for e in ordered if e >= start], None
 
 
+DEFAULT_ELASTICITY = 0.85   # 推定できないときの値（2026年6〜9月の実測は0.79〜0.92）
+MIN_ELASTICITY_SAMPLES = 50
+
+
+def entity_pools(mirror: dict, weights: dict, entity_of: dict):
+    """エンティティごとの MIRROR 原資と、ミラー済ステークの合計"""
+    pool, stake = defaultdict(float), defaultdict(float)
+    for h, w in weights.items():
+        ent = entity_of.get(h)
+        if ent and w > 0:
+            pool[ent] += mirror.get(h, 0.0)
+            stake[ent] += w
+    return pool, stake
+
+
+def mirror_elasticity(epochs: list):
+    """エンティティのステークが増減したとき、MIRROR原資がどれだけ連動するか（弾力性）。
+    0 = 原資は一定で、入った分だけ全員が薄まる / 1 = 原資もステークに比例し、薄まらない。
+    epochs: 連続するエポックの (pool, stake) のリスト。
+    ネットワーク全体の変動を除くため、各エポックで平均を引いてから回帰する。"""
+    xs, ys = [], []
+    for (p0, s0), (p1, s1) in zip(epochs, epochs[1:]):
+        rows = [(math.log(s1[e] / s0[e]), math.log(p1[e] / p0[e]))
+                for e in p1 if e in p0 and min(p0[e], p1[e], s0.get(e, 0), s1[e]) > 0]
+        if not rows:
+            continue
+        mx = sum(r[0] for r in rows) / len(rows)
+        my = sum(r[1] for r in rows) / len(rows)
+        xs += [r[0] - mx for r in rows]
+        ys += [r[1] - my for r in rows]
+    sxx = sum(x * x for x in xs)
+    if len(xs) < MIN_ELASTICITY_SAMPLES or sxx == 0:
+        return DEFAULT_ELASTICITY, len(xs)
+    beta = sum(x * y for x, y in zip(xs, ys)) / sxx
+    return min(1.0, max(0.0, beta)), len(xs)
+
+
 def unchanged(prev: dict, payload: dict) -> bool:
     """生成時刻以外が同じか"""
     strip = lambda d: {k: v for k, v in d.items() if k != "generatedAt"}
@@ -195,6 +233,12 @@ def main() -> int:
 
     entity_of = loaded[window[-1]][3]
 
+    # 窓より1つ前のエポックも使えるなら、連続するペアを増やして推定を安定させる
+    elast_epochs = [e for e in sorted(loaded) if e >= window[0] - 1]
+    elasticity, n_elast = mirror_elasticity(
+        [entity_pools(*[loaded[e][i] for i in (1, 2, 3)]) for e in elast_epochs])
+    print(f"  MIRROR原資の弾力性: {elasticity:.2f} (エンティティ×エポック {n_elast}組)", file=sys.stderr)
+
     out = {}
     for node_id, a in acc.items():
         vrm = a["rew"] / a["amt"] * 100 * ANNUALIZE if a["amt"] > 0 else None
@@ -226,6 +270,8 @@ def main() -> int:
         "windowDays": round(len(window) * EPOCH_DAYS, 1),
         "definition": "net APR to a delegator = VRM + MIRROR, both after fees",
         "medianApr": round(statistics.median(aprs), 3) if aprs else None,
+        # 自分が入ったときのMIRROR希薄化: MIRROR後 = MIRROR × ((E+A)/E)^(弾力性-1)
+        "mirrorElasticity": round(elasticity, 2),
         "nodes": out,
     }
 

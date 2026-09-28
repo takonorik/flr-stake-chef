@@ -44,6 +44,34 @@ class ChooseWindow(unittest.TestCase):
         self.assertEqual(b.choose_window(pools, 4)[0], [430, 432, 433, 435])
 
 
+class MirrorElasticity(unittest.TestCase):
+    @staticmethod
+    def synthetic(beta, n_ent=40, n_ep=4):
+        # 原資 = ネットワーク要因(エポックごとに変動) × ステーク^beta
+        epochs = []
+        for t in range(n_ep):
+            stake = {f"e{i}": 1e6 * (1 + i) * (1 + 0.05 * ((i * 7 + t * 3) % 11)) for i in range(n_ent)}
+            pool = {k: (0.9 ** t) * v ** beta for k, v in stake.items()}
+            epochs.append((pool, stake))
+        return epochs
+
+    def test_recovers_known_elasticity(self):
+        for beta in (0.0, 0.5, 0.85, 1.0):
+            est, n = b.mirror_elasticity(self.synthetic(beta))
+            self.assertAlmostEqual(est, beta, places=6)
+            self.assertGreaterEqual(n, b.MIN_ELASTICITY_SAMPLES)
+
+    def test_falls_back_when_too_few_samples(self):
+        est, n = b.mirror_elasticity(self.synthetic(0.3, n_ent=5, n_ep=2))
+        self.assertEqual(est, b.DEFAULT_ELASTICITY)
+
+    def test_entity_pools_groups_nodes(self):
+        pool, stake = b.entity_pools({"n1": 10.0, "n2": 5.0}, {"n1": 100.0, "n2": 50.0, "n3": 0.0},
+                                     {"n1": "A", "n2": "A", "n3": "B"})
+        self.assertEqual((pool["A"], stake["A"]), (15.0, 150.0))
+        self.assertNotIn("B", stake)
+
+
 class Unchanged(unittest.TestCase):
     def test_ignores_generated_at(self):
         a = {"generatedAt": "2026-09-25", "epochs": [1], "nodes": {"x": 1}}

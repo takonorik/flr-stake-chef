@@ -162,7 +162,7 @@ select option{background:#ffffff}
 .disc-toggle .disc-arrow{display:inline-block;transition:transform .25s;margin-right:4px;font-size:.6rem}
 .disc-toggle.open .disc-arrow{transform:rotate(90deg)}
 .disc-body{max-height:0;overflow:hidden;transition:max-height .35s ease,opacity .3s ease;opacity:0}
-.disc-body.open{max-height:400px;opacity:1}
+.disc-body.open{max-height:900px;opacity:1}
 .disc-inner{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:8px;text-align:left}
 .disc-inner ul{list-style:none;display:flex;flex-direction:column;gap:6px}
 .disc-inner li{font-size:.7rem;color:var(--muted);line-height:1.6;padding-left:16px;position:relative}
@@ -275,7 +275,7 @@ const T = {
     cond_items: ['Uptime 99% 以上 かつ 直近エポックで報酬実績あり','指定期間・数量で空き容量あり','実質APR（手数料控除後）の高い順に10件ずつ表示'],
     btn_search: '🔍 バリデータを検索する',
     btn_loading: '🔄 データ取得中...',
-    rt_label: 'おすすめバリデータ',
+    rt_label: '条件に合うバリデータ',
     credit: 'Provided by <a href="https://lit.link/flarejapancommunity" target="_blank">Flare Japan Community</a>',
     data_live: (n) => 'P-Chain LIVE: ' + new Date(loadedAt).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + 'ノード取得)'
       + (APR_META ? ' ／ 実質APR: 直近' + APR_META.windowDays + '日の実績 (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + '、' + fmtMD(APR_META.generatedAt) + '取込)' : ''),
@@ -311,12 +311,14 @@ const T = {
     disc_items: [
       '本ツールの利用により生じたいかなる損害・不利益についても、開発者および提供者は一切の責任を負いかねます。',
       '本ツールは情報提供を目的としており、投資助言・推奨を行うものではありません。',
-      '表示されるデータはリアルタイム取得ですが、正確性を保証するものではありません。<br>お問い合わせは <a href="https://x.com/flarejapangroup" target="_blank">Flare Japan CommunityのX</a> まで。|contact',
+      '空き容量・残り日数はP-Chainからリアルタイムに取得しています。実質APRと見込み額は、Flare財団が公開する直近14日間の支払実績から算出した参考値であり、将来の利回りを保証するものではありません。',
+      '過去12回の検証（2026年7〜9月）では、表示値はその後14日間の実績より平均0.8pt高めでした（同期間に参加者が増え、全体の利回りが下がったため）。一方、表示上位10件の実績は平均11.1%で、候補全体の中央値9.3%を上回りました。',
+      'データの正確性は保証しません。お問い合わせは <a href="https://x.com/flarejapangroup" target="_blank">Flare Japan CommunityのX</a> まで。|contact',
       '暗号資産への投資にはリスクが伴います。最終的な判断はご自身の責任においてお願いいたします。',
     ],
   },
   en: {
-    subtitle: 'Find the <strong>best validator</strong> for your stake',
+    subtitle: 'Find <strong>FLR staking</strong> validators that fit your stake',
     lbl_amount: 'Staking Amount <span class="label-hint">Min 50,000 FLR</span>',
     lbl_enddate: 'End Date <span class="label-hint">14+ days from today</span>',
     cal_select: 'Select date',
@@ -328,7 +330,7 @@ const T = {
     cond_items: ['Uptime ≥ 99% and actually paid in recent epochs','Free capacity for your amount & duration','Sorted by net APR (after fees), 10 at a time'],
     btn_search: '🔍 Search Validators',
     btn_loading: '🔄 Fetching data...',
-    rt_label: 'Recommended Validators',
+    rt_label: 'Matching Validators',
     credit: 'Provided by <a href="https://lit.link/flarejapancommunity" target="_blank">Flare Japan Community</a>',
     data_live: (n) => 'P-Chain LIVE: ' + new Date(loadedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + ' nodes)'
       + (APR_META ? ' / Net APR: last ' + APR_META.windowDays + 'd measured (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + ', loaded ' + fmtMD(APR_META.generatedAt) + ')' : ''),
@@ -364,7 +366,9 @@ const T = {
     disc_items: [
       'The developers and providers assume no liability for any losses or damages arising from the use of this tool.',
       'This tool is for informational purposes only and does not constitute investment advice or recommendations.',
-      'Data is fetched in real-time but accuracy is not guaranteed. For data inquiries, contact <a href="https://x.com/flarejapangroup" target="_blank">Flare Japan Community on X</a>.|contact',
+      'Free capacity and remaining days are fetched live from the P-Chain. Net APR and estimated rewards are reference values computed from the last 14 days of payouts published by the Flare Foundation, and do not guarantee future returns.',
+      'In 12 backtests (Jul–Sep 2026), the displayed value averaged 0.8 pt above what was actually paid over the following 14 days (overall yields fell as more people staked). Meanwhile, the top 10 shown actually earned 11.1% on average, versus a 9.3% median across all candidates.',
+      'Accuracy is not guaranteed. For data inquiries, contact <a href="https://x.com/flarejapangroup" target="_blank">Flare Japan Community on X</a>.|contact',
       'Investing in crypto assets involves risk. All investment decisions are made at your own discretion and responsibility.',
     ],
   }
@@ -699,12 +703,12 @@ async function go(){
   });
 
   // 自分が入った後のAPRに補正する。
-  // VRMはステーク比例なので不変。MIRRORはエンティティ単位のプールを
-  // そのエンティティの全ノードのステークで分けるため、自分の分だけ薄まる。
-  //   MIRROR後 = MIRROR現在 × エンティティ合計 / (エンティティ合計 + 自分の数量)
-  // 自分のステークでエンティティの重みも少し増えプールが増えるので、これはやや保守的な見積もり。
+  // VRMはステーク比例なので不変。MIRRORはエンティティ単位の原資を全ノードのステークで分けるが、
+  // ステークが増えると原資もかなり連動して増える（実測の弾力性 約0.8）ので、薄まるのは一部だけ。
+  //   MIRROR後 = MIRROR現在 × ((エンティティ合計 + 自分の数量) / エンティティ合計)^(弾力性 - 1)
+  const elasticity = (APR_META && APR_META.mirrorElasticity != null) ? APR_META.mirrorElasticity : 0.85;
   filtered.forEach(n=>{
-    const dilution = n.poolStake / (n.poolStake + amount);
+    const dilution = Math.pow((n.poolStake + amount) / n.poolStake, elasticity - 1);
     n.mirrorAfter = n.mirror * dilution;
     n.aprAfter = n.vrm + n.mirrorAfter;
     n.dilutionPt = n.apr - n.aprAfter;
