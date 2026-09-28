@@ -54,6 +54,7 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
 .field{background:var(--field);border-radius:16px;padding:10px 14px;border:2px solid transparent;transition:border-color .15s}
 .field:focus-within,.field:hover{border-color:var(--pink)}
 .iw{display:flex;align-items:center;gap:8px}
+.iw input::placeholder{color:var(--muted);opacity:.55;font-weight:700}
 .iw input{flex:1;min-width:0;border:0;background:transparent;color:var(--text);font:800 1.2rem var(--sans);font-variant-numeric:tabular-nums;outline:none}
 .unit{font-size:.75rem;font-weight:800;color:var(--pink)}
 .cal-display{display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-weight:800;font-size:1.05rem;min-height:1.75rem}
@@ -106,7 +107,11 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
 .summary{font-size:.76rem;color:var(--muted);line-height:1.7;margin:0 4px 12px}
 .claim-note{display:none;border:2px dashed var(--pink);border-radius:16px;padding:12px 14px;margin-bottom:16px;font-size:.74rem;line-height:1.7;background:var(--pink-tint)}
 .claim-note.on{display:block}
-.claim-note b{display:block;margin-bottom:4px;font-weight:900;color:var(--text)}
+.claim-note summary{cursor:pointer;font-weight:900;color:var(--text);list-style:none}
+.claim-note summary::-webkit-details-marker{display:none}
+.claim-note summary::after{content:' ▸';color:var(--pink)}
+.claim-note[open] summary::after{content:' ▾'}
+.claim-note p{margin-top:6px}
 .vlist{display:flex;flex-direction:column;gap:16px}
 .none-msg{color:var(--muted);font-size:.85rem;padding:24px 0;text-align:center}
 
@@ -180,7 +185,8 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
   .layout{display:grid;grid-template-columns:400px minmax(0,1fr);gap:32px;align-items:start}
   .layout>.panel{position:sticky;top:84px;max-height:calc(100vh - 100px);overflow:auto}
   .layout>.panel .grid2{grid-template-columns:minmax(0,1fr)}
-  .col-results{padding-top:20px}
+  .col-results{margin-top:-60px}
+  .col-results .results{margin-top:0}
   .results{margin-top:0}
   .empty-state{display:block;border:2px dashed var(--pink);border-radius:26px;padding:28px;background:var(--pink-tint)}
   .empty-state.off{display:none}
@@ -249,7 +255,7 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
       <div class="field">
         <label id="lbl_amount" for="amount"></label>
         <div class="iw">
-          <input type="number" id="amount" min="50000" value="50000" inputmode="numeric">
+          <input type="number" id="amount" min="50000" inputmode="numeric">
           <span class="unit">FLR</span>
         </div>
       </div>
@@ -298,7 +304,7 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
       <span class="rc" id="rc"></span>
     </div>
     <p class="summary" id="summary"></p>
-    <p class="claim-note" id="claimNote"></p>
+    <details class="claim-note" id="claimNote"></details>
     <div class="vlist" id="vlist"></div>
   </section>
   </div>
@@ -311,7 +317,7 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
     <div class="field">
       <label id="lbl_d_amount" for="dAmount"></label>
       <div class="iw">
-        <input type="number" id="dAmount" min="1" value="100000" inputmode="numeric">
+        <input type="number" id="dAmount" min="1" inputmode="numeric">
         <span class="unit">WFLR</span>
       </div>
     </div>
@@ -339,7 +345,7 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
       <span class="rc" id="dRc"></span>
     </div>
     <p class="summary" id="dSummary"></p>
-    <p class="claim-note" id="dNote"></p>
+    <details class="claim-note" id="dNote"></details>
     <div class="vlist" id="dList"></div>
   </section>
   </div>
@@ -387,6 +393,8 @@ const T = {
     d_es_title: '委任したい量を入れて「プロバイダーを探す」を押すと、ここに結果が並びます',
     d_es_items: ['<b>実質APR</b> … 手数料を引いたあとの年利（あなたが委任した後の値）', '<b>見込み</b> … 30日間で受け取れる目安の量', 'ロック期間はなく、いつでも委任先を変えられます'],
     lbl_d_amount: '委任する量 <span class="label-hint">FLRはWFLRにラップして委任</span>',
+    ph_amount: '例：100,000',
+    ph_d_amount: '例：100,000',
     d_cond_items: ['直近エポックで報酬実績あり'],
     lbl_d_unnamed: '名称未登録のプロバイダーも表示する<small>名前が公式データに無いプロバイダーです。運営者の確認はご自身でお願いします。</small>',
     d_btn: 'プロバイダーを探す →',
@@ -418,7 +426,8 @@ const T = {
     leg_vrm: 'ステーキング報酬',
     leg_mirror: 'MIRROR上乗せ',
     portal_link: 'Flare Portalを開く ↗',
-    claim_note_title: '💡 確認のポイント',
+    claim_note_title: '💡 確認のポイント（報酬の受け取り方・見込み額の注意）',
+    d_note_title: '💡 確認のポイント（受け取り方・ロックなし・委任先は最大2つ）',
     claim_note: '報酬は2種類に分かれます。ステーキング報酬（VRM）はFlare Portalのステーキング画面から約14日ごと、MIRROR（FTSO分）はデリゲート画面からエポックごとに受け取ります。見込み報酬はあくまで目安です。委任量やエポックのタイミングにより、見込みより少なくなることがあるので参考程度にご覧ください。',
     pill_fee: (f)=> '手数料 '+f+'%',
     pill_uptime: (u)=> '稼働率 '+u.toFixed(1)+'%',
@@ -469,6 +478,8 @@ const T = {
     d_es_title: 'Enter an amount and press “Find providers”. Results appear here.',
     d_es_items: ['<b>Net APR</b> — annual rate after fees (after adding your delegation)', '<b>Estimate</b> — roughly what you receive over 30 days', 'No lock-up — you can change providers any time'],
     lbl_d_amount: 'Amount to delegate <span class="label-hint">wrap FLR into WFLR to delegate</span>',
+    ph_amount: 'e.g. 100,000',
+    ph_d_amount: 'e.g. 100,000',
     d_cond_items: ['Actually paid in recent epochs'],
     lbl_d_unnamed: 'Also show providers with no registered name<small>The name is not in the official data. Please verify the operator yourself.</small>',
     d_btn: 'Find providers →',
@@ -500,7 +511,8 @@ const T = {
     leg_vrm: 'Staking reward',
     leg_mirror: 'MIRROR bonus',
     portal_link: 'Open Flare Portal ↗',
-    claim_note_title: '💡 Before you delegate',
+    claim_note_title: '💡 Before you delegate (how to claim, estimates)',
+    d_note_title: '💡 Before you delegate (claiming, no lock-up, up to 2 providers)',
     claim_note: 'Rewards come in two parts. Staking rewards (VRM) are claimed on the Flare Portal staking page about every 14 days, and MIRROR (FTSO share) on the delegation page each epoch. Estimated rewards are only a guide: depending on your amount and epoch timing, you may receive less than estimated.',
     pill_fee: (f)=> 'Fee '+f+'%',
     pill_uptime: (u)=> 'Uptime '+u.toFixed(1)+'%',
@@ -556,6 +568,8 @@ function applyLang(){
   document.getElementById('d_es_title').textContent = t.d_es_title;
   document.getElementById('d_es_list').innerHTML = t.d_es_items.map(i=>'<li>'+i+'</li>').join('');
   document.getElementById('lbl_d_amount').innerHTML = t.lbl_d_amount;
+  document.getElementById('amount').placeholder = t.ph_amount;
+  document.getElementById('dAmount').placeholder = t.ph_d_amount;
   document.getElementById('d_cond_title').textContent = t.cond_title;
   document.getElementById('d_cond_list').innerHTML = t.d_cond_items.map(i=>'<li>'+i+'</li>').join('');
   document.getElementById('lbl_d_unnamed').innerHTML = t.lbl_d_unnamed;
@@ -609,8 +623,15 @@ async function loadAprData() {
 }
 
 function scrollToResultsIfNarrow(id) {
-  // PCでは右カラムに出るので不要。1カラムのスマホでは結果の先頭まで送る
-  if (window.innerWidth < 1024) document.getElementById(id).scrollIntoView({behavior: 'smooth', block: 'start'});
+  // 検索後は結果の先頭を上部バーの直下に合わせ、1位のカードが丸ごと見えるようにする。
+  // PCでは追従する検索フォームと上端が揃う
+  const el = document.getElementById(id);
+  const bar = document.querySelector('.appbar').offsetHeight;
+  const top = el.getBoundingClientRect().top + window.scrollY - bar - 16;
+  const target = Math.max(0, top);
+  window.scrollTo({top: target, behavior: 'smooth'});
+  // スムーズスクロールが効かない環境では即座に移動する
+  setTimeout(() => { if (Math.abs(window.scrollY - target) > 40) window.scrollTo(0, target); }, 700);
 }
 
 /* ── タブ ── */
@@ -620,16 +641,16 @@ let currentTab = 'stake';
 const ICON_STEAK = document.querySelector('.brand .mark').outerHTML;
 // デリゲート: 投票箱に票を入れるクマ（FTSOはデータを「投票」して報酬を得る）
 const ICON_BEAR = '<svg viewBox="0 0 32 32" aria-hidden="true">'+
-  '<g fill="#FFFFFF" stroke="var(--line)" stroke-width="1.6"><circle cx="9.2" cy="6.8" r="3.2"/><circle cx="22.8" cy="6.8" r="3.2"/></g>'+
-  '<path d="M8.1 6.1a1.6 1.6 0 0 1 2.2-.2M23.9 6.1a1.6 1.6 0 0 0-2.2-.2" stroke="var(--line)" stroke-width="1" fill="none" stroke-linecap="round"/>'+
-  '<circle cx="16" cy="13.6" r="8.8" fill="#FFFFFF" stroke="var(--line)" stroke-width="1.8"/>'+
-  '<g stroke="var(--line)" stroke-width="1.25" fill="none"><rect x="9.4" y="10.6" width="5.6" height="4.2" rx="1.4"/><rect x="17" y="10.6" width="5.6" height="4.2" rx="1.4"/><path d="M15 12.1h2"/></g>'+
-  '<g fill="var(--line)"><circle cx="12.3" cy="12.8" r=".9"/><circle cx="19.7" cy="12.8" r=".9"/><ellipse cx="16" cy="16.6" rx="1.5" ry="1"/></g>'+
-  '<path d="M14.3 18.3q1.7 1.4 3.4 0" stroke="var(--line)" stroke-width="1.1" fill="none" stroke-linecap="round"/>'+
-  '<g transform="rotate(14 23.4 17.4)"><rect x="20.4" y="13.4" width="6" height="7.4" rx=".8" fill="#FFFFFF" stroke="var(--line)" stroke-width="1.3"/><path d="M21.9 17.3l1.3 1.3 2.2-2.6" stroke="#E62058" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>'+
-  '<rect x="3.5" y="21.5" width="25" height="8.8" rx="2.2" fill="#E62058" stroke="var(--line)" stroke-width="1.8"/>'+
-  '<rect x="17.2" y="20.9" width="9.4" height="1.9" rx=".9" fill="var(--line)"/>'+
-  '<ellipse cx="25.6" cy="20.6" rx="2.3" ry="1.9" fill="#FFFFFF" stroke="var(--line)" stroke-width="1.3"/>'+
+  '<g fill="#FFFFFF" stroke="#141016" stroke-width="1.6"><circle cx="9.2" cy="6.8" r="3.2"/><circle cx="22.8" cy="6.8" r="3.2"/></g>'+
+  '<path d="M8.1 6.1a1.6 1.6 0 0 1 2.2-.2M23.9 6.1a1.6 1.6 0 0 0-2.2-.2" stroke="#141016" stroke-width="1" fill="none" stroke-linecap="round"/>'+
+  '<circle cx="16" cy="13.6" r="8.8" fill="#FFFFFF" stroke="#141016" stroke-width="1.8"/>'+
+  '<g stroke="#141016" stroke-width="1.25" fill="none"><rect x="9.4" y="10.6" width="5.6" height="4.2" rx="1.4"/><rect x="17" y="10.6" width="5.6" height="4.2" rx="1.4"/><path d="M15 12.1h2"/></g>'+
+  '<g fill="#141016"><circle cx="12.3" cy="12.8" r=".9"/><circle cx="19.7" cy="12.8" r=".9"/><ellipse cx="16" cy="16.6" rx="1.5" ry="1"/></g>'+
+  '<path d="M14.3 18.3q1.7 1.4 3.4 0" stroke="#141016" stroke-width="1.1" fill="none" stroke-linecap="round"/>'+
+  '<g transform="rotate(14 23.4 17.4)"><rect x="20.4" y="13.4" width="6" height="7.4" rx=".8" fill="#FFFFFF" stroke="#141016" stroke-width="1.3"/><path d="M21.9 17.3l1.3 1.3 2.2-2.6" stroke="#E62058" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>'+
+  '<rect x="3.5" y="21.5" width="25" height="8.8" rx="2.2" fill="#E62058" stroke="#141016" stroke-width="1.8"/>'+
+  '<rect x="17.2" y="20.9" width="9.4" height="1.9" rx=".9" fill="#141016"/>'+
+  '<ellipse cx="25.6" cy="20.6" rx="2.3" ry="1.9" fill="#FFFFFF" stroke="#141016" stroke-width="1.3"/>'+
   '<path d="M8 26h3M21 26h3" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round"/>'+
   '</svg>';
 
@@ -1072,7 +1093,7 @@ function render(){
   renderMeta(t);
 
   const note=document.getElementById('claimNote');
-  note.innerHTML='<b>'+t.claim_note_title+'</b>'+esc(t.claim_note);
+  note.innerHTML='<summary>'+t.claim_note_title+'</summary><p>'+esc(t.claim_note)+'</p>';
   note.classList.toggle('on', lastFiltered.length>0);
 
   if(!lastFiltered.length){
@@ -1132,7 +1153,7 @@ function renderDeleg(){
   document.getElementById('dSummary').textContent =
     t.d_summary(dAmount.toLocaleString(), total, Object.keys(APR_META.providers || {}).length, APR_META.medianApr.toFixed(1));
   const note = document.getElementById('dNote');
-  note.innerHTML = '<b>'+t.claim_note_title+'</b>'+esc(t.d_note);
+  note.innerHTML = '<summary>'+t.d_note_title+'</summary><p>'+esc(t.d_note)+'</p>';
   note.classList.toggle('on', total > 0);
   if (!total) {
     list.innerHTML = '<p class="none-msg">'+t.none_msg+'</p>';
