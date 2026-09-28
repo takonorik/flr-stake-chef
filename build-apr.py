@@ -97,11 +97,13 @@ def load_epoch(e: int):
     dist = fetch(FSP.format(e=e, f="reward-distribution-data.json"))
     info = fetch(FSP.format(e=e, f="reward-epoch-info.json"))
 
-    mirror = {}
+    mirror, wnat = {}, defaultdict(float)
     for c in dist["rewardClaims"]:
         b = c["body"]
         if b["claimType"] == 3:                      # 3 = MIRROR (ステーキング分)
             mirror[b["beneficiary"].lower()] = int(b["amount"]) / 1e18
+        elif b["claimType"] == 2:                    # 2 = WNAT (デリゲート分、手数料控除済み)
+            wnat[b["beneficiary"].lower()] += int(b["amount"]) / 1e18
 
     weights = {}
     entity_of = {}
@@ -113,7 +115,19 @@ def load_epoch(e: int):
             # その全ノードのステークで分け合う（実測でノード間の率が完全一致）
             entity_of[nid.lower()] = i["voter"].lower()
 
-    return nodes, mirror, weights, entity_of
+    # デリゲート: プロバイダーごとの WNAT 報酬を、その時点の委任総額(wNatWeight)で割る
+    providers = {}
+    for v in info["voterRegistrationInfo"]:
+        i = v["voterRegistrationInfo"]
+        deleg = i["delegationAddress"].lower()
+        providers[i["voter"].lower()] = {
+            "deleg": deleg,
+            "w": int(i["wNatWeight"]) / 1e18,
+            "fee": i["delegationFeeBIPS"] / 100,
+            "paid": wnat.get(deleg, 0.0),
+        }
+
+    return nodes, mirror, weights, entity_of, providers
 
 
 def network_mirror_pool(mirror, weights) -> float:
@@ -173,6 +187,49 @@ def mirror_elasticity(epochs: list):
     return min(1.0, max(0.0, beta)), len(xs)
 
 
+def fetch_provider_names(e: int) -> dict:
+    """voter → データプロバイダー名（minimal-conditions.json に載っている）"""
+    try:
+        rows = fetch(FSP.format(e=e, f="minimal-conditions.json"))
+    except (urllib.error.HTTPError, urllib.error.URLError):
+        return {}
+    return {r["voterAddress"].lower(): r.get("dataProviderName") for r in rows if r.get("voterAddress")}
+
+
+def aggregate_providers(window_epochs: list, elast_epochs: list, names: dict):
+    """デリゲートの実質APR（手数料控除後）をプロバイダーごとに集計する。
+    window_epochs / elast_epochs: 各エポックの {voter: {deleg, w, fee, paid}}"""
+    acc = defaultdict(lambda: {"paid": 0.0, "w": 0.0, "ok": 0, "seen": 0})
+    latest = {}
+    for ep in window_epochs:
+        for voter, p in ep.items():
+            if p["w"] <= 0:
+                continue
+            a = acc[voter]
+            a["paid"] += p["paid"]
+            a["w"] += p["w"]
+            a["seen"] += 1
+            a["ok"] += 1 if p["paid"] > 0 else 0
+            latest[voter] = p
+    out = {}
+    for voter, a in acc.items():
+        p = latest[voter]
+        out[voter] = {
+            "name": names.get(voter),
+            "delegationAddress": p["deleg"],
+            "apr": round(a["paid"] / a["w"] * 100 * ANNUALIZE, 3) if a["w"] else 0.0,
+            "fee": p["fee"],
+            "delegatedM": round(p["w"] / 1e6, 1),
+            "paidEpochs": a["ok"],
+            "observedEpochs": a["seen"],
+        }
+    elast, _ = mirror_elasticity([
+        ({v: p["paid"] for v, p in ep.items()}, {v: p["w"] for v, p in ep.items()})
+        for ep in elast_epochs])
+    return out, elast
+
+
+
 def unchanged(prev: dict, payload: dict) -> bool:
     """生成時刻以外が同じか"""
     strip = lambda d: {k: v for k, v in d.items() if k != "generatedAt"}
@@ -216,7 +273,7 @@ def main() -> int:
     acc = defaultdict(lambda: {"rew": 0.0, "amt": 0.0, "mir": 0.0, "wt": 0.0,
                                "elig": 0, "seen": 0, "name": None, "fee": None})
     for e in window:
-        nodes, mirror, weights, _ = loaded[e]
+        nodes, mirror, weights, _, _ = loaded[e]
         for n in nodes:
             a = acc[n["nodeId"]]
             a["rew"] += sum(int(d.get("delegatorRewardAmount", 0) or 0)
@@ -256,6 +313,14 @@ def main() -> int:
             "observedEpochs": a["seen"],
         }
 
+    # 名前は minimal-conditions.json を優先し、無ければバリデータ側(reward-scripts)の名前で補う
+    names = {entity_of.get(node_id_to_hex(nid)): a["name"]
+             for nid, a in acc.items() if a["name"] and entity_of.get(node_id_to_hex(nid))}
+    names.update({k: v for k, v in fetch_provider_names(window[-1]).items() if v})
+    providers, wnat_elasticity = aggregate_providers(
+        [loaded[e][4] for e in window], [loaded[e][4] for e in elast_epochs], names)
+    print(f"  デリゲート: {len(providers)}プロバイダー / WNAT原資の弾力性 {wnat_elasticity:.2f}", file=sys.stderr)
+
     if len(window) < MIN_WINDOW_EPOCHS or len(out) < MIN_NODES:
         print(f"データ不足（{len(window)}エポック / {len(out)}ノード）。"
               f"apr.json は更新しません。", file=sys.stderr)
@@ -263,7 +328,7 @@ def main() -> int:
 
     aprs = sorted(v["apr"] for v in out.values())
     payload = {
-        "schema": 2,
+        "schema": 3,
         "generatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "epochs": window,
         "epochDays": EPOCH_DAYS,
@@ -273,6 +338,9 @@ def main() -> int:
         # 自分が入ったときのMIRROR希薄化: MIRROR後 = MIRROR × ((E+A)/E)^(弾力性-1)
         "mirrorElasticity": round(elasticity, 2),
         "nodes": out,
+        # デリゲート(WFLRの委任先)。キーは FSP の voter アドレス
+        "wnatElasticity": round(wnat_elasticity, 2),
+        "providers": providers,
     }
 
     # 中身が前回と同じなら書き換えない。generatedAt だけ変わって毎日コミットされるのを防ぎ、

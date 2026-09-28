@@ -79,6 +79,8 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
 .cal-day.today{box-shadow:inset 0 0 0 2px var(--pink-soft)}
 .cal-day.disabled{color:var(--muted);opacity:.35;cursor:not-allowed}
 .cal-day.empty{cursor:default}
+.cal-day.other{color:var(--muted)}
+.cal-day.other:not(.disabled){font-weight:600}
 .cal-hint{font-size:.68rem;color:var(--muted);margin-top:8px;text-align:center}
 
 /* conditions */
@@ -98,14 +100,13 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
 .stale-warn.on{display:block}
 
 /* results */
-#results{display:none;margin-top:28px}
-#results.on{display:block}
 .rh{display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 10px}
 .rt{font-size:1.05rem;font-weight:900}
 .rc{font-size:.8rem;font-weight:800;color:var(--pink)}
 .summary{font-size:.76rem;color:var(--muted);line-height:1.7;margin:0 4px 12px}
 .claim-note{display:none;border:2px dashed var(--pink);border-radius:16px;padding:12px 14px;margin-bottom:16px;font-size:.74rem;line-height:1.7;background:var(--pink-tint)}
 .claim-note.on{display:block}
+.claim-note b{display:block;margin-bottom:4px;font-weight:900;color:var(--text)}
 .vlist{display:flex;flex-direction:column;gap:16px}
 .none-msg{color:var(--muted);font-size:.85rem;padding:24px 0;text-align:center}
 
@@ -154,6 +155,50 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
 .more-btn{width:100%;margin-top:6px;padding:14px;border:2px solid var(--line);border-radius:16px;background:var(--surface);color:var(--text);font:900 .85rem var(--sans);cursor:pointer;box-shadow:4px 4px 0 var(--shadow)}
 .more-btn:active{transform:translate(2px,2px);box-shadow:none}
 
+/* app bar (sticky) + tabs */
+.appbar{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:2px solid var(--line)}
+.appbar-in{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:14px}
+.appbar .brand{flex:1;min-width:0}
+.tabs{display:flex;gap:4px;padding:4px;border:2px solid var(--line);border-radius:99px;background:var(--surface)}
+.tabs button{border:0;border-radius:99px;padding:7px 16px;background:transparent;color:var(--muted);font:800 .82rem var(--sans);cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--pink);color:#fff}
+.tabs .ti{width:20px;height:20px;flex-shrink:0}
+@media(max-width:720px){
+  .appbar-in{flex-wrap:wrap;row-gap:8px}
+  .tabs{order:3;width:100%}
+  .tabs button{flex:1;justify-content:center}
+}
+.hero{padding-top:26px}
+.pane[hidden]{display:none}
+
+/* desktop: 左に検索フォーム（追従）、右に結果 */
+.hero-in{max-width:1180px}
+.wrap{max-width:1180px}
+.col-results{min-width:0}
+.empty-state{display:none}
+@media(min-width:1024px){
+  .layout{display:grid;grid-template-columns:400px minmax(0,1fr);gap:32px;align-items:start}
+  .layout>.panel{position:sticky;top:84px;max-height:calc(100vh - 100px);overflow:auto}
+  .layout>.panel .grid2{grid-template-columns:minmax(0,1fr)}
+  .col-results{padding-top:20px}
+  .results{margin-top:0}
+  .empty-state{display:block;border:2px dashed var(--pink);border-radius:26px;padding:28px;background:var(--pink-tint)}
+  .empty-state.off{display:none}
+}
+.es-mark{width:56px;height:56px;margin-bottom:10px}
+.es-title{font-weight:900;font-size:1.05rem;margin-bottom:10px}
+.es-list{list-style:none;display:flex;flex-direction:column;gap:6px}
+.es-list li{font-size:.82rem;font-weight:500;padding-left:18px;position:relative;line-height:1.6}
+.es-list li::before{content:"→";position:absolute;left:0;color:var(--pink);font-weight:900}
+.es-list b{font-weight:900}
+.results{display:none;margin-top:28px}
+.results.on{display:block}
+
+.results{scroll-margin-top:120px}
+.tabs svg{width:22px;height:22px;flex-shrink:0}
+.es-mark svg{width:56px;height:56px}
+.node-id-text.addr{font-size:.78rem;letter-spacing:0;word-break:break-all}
+
 /* footer */
 .foot{margin-top:40px;text-align:center}
 .credit{font-size:.74rem;color:var(--muted)}
@@ -173,25 +218,32 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
 </style>
 </head>
 <body>
-<header class="hero">
-  <div class="hero-in">
-    <div class="topbar">
+<div class="appbar"><div class="appbar-in">
       <div class="brand">
         <svg class="mark" viewBox="0 0 32 32" width="36" height="36" aria-hidden="true"><g transform="translate(0 3)"><path d="M3.8 16.6C3.4 11.2 8.2 7.4 14.8 7.1 21.2 6.8 28 8.8 28.4 14.8 28.8 20.6 24.6 25.2 18 25.6 14.6 25.8 13 23.9 10.6 24.1 6.6 24.4 4.1 21.2 3.8 16.6Z" fill="#FFD6E1" stroke="var(--line)" stroke-width="1.8" stroke-linejoin="round"/><path transform="translate(16.2 16.3) scale(.76) translate(-16.2 -16.3)" d="M3.8 16.6C3.4 11.2 8.2 7.4 14.8 7.1 21.2 6.8 28 8.8 28.4 14.8 28.8 20.6 24.6 25.2 18 25.6 14.6 25.8 13 23.9 10.6 24.1 6.6 24.4 4.1 21.2 3.8 16.6Z" fill="#E62058"/><path d="M9.6 17.4 13.8 13.2M12.2 21 18.4 14.8M16.8 22.4 20.8 18.4" stroke="#B3134A" stroke-width="1.6" stroke-linecap="round"/></g><g transform="rotate(14 22 7)"><g fill="var(--line)"><circle cx="18.6" cy="6.4" r="3.4"/><circle cx="22" cy="4.4" r="3.9"/><circle cx="25.4" cy="6.4" r="3.4"/></g><g fill="#FFFFFF"><circle cx="18.6" cy="6.4" r="2.5"/><circle cx="22" cy="4.4" r="3"/><circle cx="25.4" cy="6.4" r="2.5"/></g><rect x="17.8" y="8.2" width="8.4" height="4.2" rx="1.2" fill="#FFFFFF" stroke="var(--line)" stroke-width="1.3"/></g></svg>
         <span class="wordmark">Stake <b>Chef</b></span>
         <span class="for-flr">FLR</span>
       </div>
+      <nav class="tabs" role="tablist">
+        <button role="tab" id="tabStake" aria-selected="true" onclick="switchTab('stake')"></button>
+        <button role="tab" id="tabDeleg" aria-selected="false" onclick="switchTab('delegate')"></button>
+      </nav>
       <div class="lang-toggle" id="langToggle" onclick="switchLang()">
         <span id="langJA" class="active">JA</span>
         <span id="langEN">EN</span>
       </div>
-    </div>
+</div></div>
+
+<header class="hero">
+  <div class="hero-in">
     <h1 class="catch" id="catch"></h1>
     <p class="lead" id="subtitle"></p>
   </div>
 </header>
 
 <main class="wrap">
+ <div class="pane" id="paneStake">
+ <div class="layout">
   <section class="panel">
     <div class="grid2">
       <div class="field">
@@ -234,7 +286,13 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
     <p class="stale-warn" id="staleWarn"></p>
   </section>
 
-  <section id="results">
+  <div class="col-results">
+  <div class="empty-state" id="emptyState">
+    <div class="es-mark" aria-hidden="true"></div>
+    <p class="es-title" id="es_title"></p>
+    <ul class="es-list" id="es_list"></ul>
+  </div>
+  <section class="results" id="results">
     <div class="rh">
       <span class="rt" id="rt_label"></span>
       <span class="rc" id="rc"></span>
@@ -243,6 +301,50 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
     <p class="claim-note" id="claimNote"></p>
     <div class="vlist" id="vlist"></div>
   </section>
+  </div>
+ </div>
+ </div>
+
+ <div class="pane" id="paneDeleg" hidden>
+ <div class="layout">
+  <section class="panel">
+    <div class="field">
+      <label id="lbl_d_amount" for="dAmount"></label>
+      <div class="iw">
+        <input type="number" id="dAmount" min="1" value="100000" inputmode="numeric">
+        <span class="unit">WFLR</span>
+      </div>
+    </div>
+    <div class="condition-box" style="margin-top:12px">
+      <p class="cond-title" id="d_cond_title"></p>
+      <ul class="cond-list" id="d_cond_list"></ul>
+      <label class="opt-row">
+        <input type="checkbox" id="dShowUnnamed">
+        <span id="lbl_d_unnamed"></span>
+      </label>
+    </div>
+    <button class="btn" id="dSearchBtn" onclick="goDeleg()"></button>
+    <p class="data-note" id="dDataNote"></p>
+  </section>
+
+  <div class="col-results">
+  <div class="empty-state" id="dEmptyState">
+    <div class="es-mark" aria-hidden="true"></div>
+    <p class="es-title" id="d_es_title"></p>
+    <ul class="es-list" id="d_es_list"></ul>
+  </div>
+  <section class="results" id="dResults">
+    <div class="rh">
+      <span class="rt" id="d_rt_label"></span>
+      <span class="rc" id="dRc"></span>
+    </div>
+    <p class="summary" id="dSummary"></p>
+    <p class="claim-note" id="dNote"></p>
+    <div class="vlist" id="dList"></div>
+  </section>
+  </div>
+ </div>
+ </div>
 
   <footer class="foot">
     <p class="credit" id="credit"></p>
@@ -272,10 +374,30 @@ const T = {
     cal_months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
     cal_dur: (d)=> '（'+d+'日間）',
     cond_title: '検索条件',
-    cond_items: ['Uptime 99% 以上 かつ 直近エポックで報酬実績あり','指定期間・数量で空き容量あり','実質APR（手数料控除後）の高い順に10件ずつ表示'],
+    cond_items: ['Uptime 99% 以上 かつ 直近エポックで報酬実績あり','指定期間・数量で空き容量あり'],
     btn_search: 'バリデータを探す →',
     btn_loading: 'データ取得中…',
     rt_label: '条件に合うバリデータ',
+    tab_stake: 'ステーキング',
+    tab_deleg: 'デリゲート',
+    catch_d: 'WFLRのデリゲート先も、<br><em>比べて選ぶ</em>。',
+    subtitle_d: 'Flare公式の支払実績をもとに、手数料控除後で比較',
+    es_title: '条件を入れて「バリデータを探す」を押すと、ここに結果が並びます',
+    es_items: ['<b>実質APR</b> … 手数料を引いたあとの年利（あなたが預けた後の値）', '<b>内訳</b> … ステーキング報酬 ＋ MIRROR上乗せ', '<b>見込み</b> … 指定した期間で受け取れる目安の量'],
+    d_es_title: '委任したい量を入れて「プロバイダーを探す」を押すと、ここに結果が並びます',
+    d_es_items: ['<b>実質APR</b> … 手数料を引いたあとの年利（あなたが委任した後の値）', '<b>見込み</b> … 30日間で受け取れる目安の量', 'ロック期間はなく、いつでも委任先を変えられます'],
+    lbl_d_amount: '委任する量 <span class="label-hint">FLRはWFLRにラップして委任</span>',
+    d_cond_items: ['直近エポックで報酬実績あり'],
+    lbl_d_unnamed: '名称未登録のプロバイダーも表示する<small>名前が公式データに無いプロバイダーです。運営者の確認はご自身でお願いします。</small>',
+    d_btn: 'プロバイダーを探す →',
+    d_rt_label: '条件に合うプロバイダー',
+    d_summary: (amt,total,n,stakeMed)=> amt+' WFLRで検索 → '+n+'プロバイダー中 '+total+'件が該当。実質APRの高い順に並べています（あなたが委任した後の値）。参考：ステーキングの実質APR中央値は '+stakeMed+'%。',
+    d_note: 'デリゲート報酬はFlare Portalのデリゲート画面からエポックごとに受け取ります。FLRはWFLRにラップして委任し、ロック期間はなくいつでも変更できます。1つのアドレスから最大2つのプロバイダーに割合を分けて委任できます。見込み報酬はあくまで目安です。',
+    d_est_label: '30日間の見込み',
+    d_pill_deleg: (m)=> '委任総額 '+m,
+    d_node_label: '① コピー → ② Flare Portalのデリゲート画面で検索',
+    d_data_note: (ep,date)=> 'epoch '+ep[0]+'-'+ep[ep.length-1]+' の支払実績（'+date+'取込）',
+    d_alert_amount: '委任する量を入力してください',
     credit: 'Provided by <a href="https://lit.link/flarejapancommunity" target="_blank">Flare Japan Community</a>',
     data_live: (n) => 'P-Chain LIVE: ' + new Date(loadedAt).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + 'ノード取得)'
       + (APR_META ? ' ／ 実質APR: 直近' + APR_META.windowDays + '日の実績 (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + '、' + fmtMD(APR_META.generatedAt) + '取込)' : ''),
@@ -284,26 +406,27 @@ const T = {
     lbl_unnamed: '名称未登録のノードも表示する<small>運営者名が公式リストに無いノードです。報酬実績の条件は同じく適用しますが、運営者の確認はご自身でお願いします。</small>',
     unnamed_name: '名称未登録',
     pill_unnamed: '運営者不明',
-    mirror_tip: (m) => 'FTSO分（MIRROR）の報酬あり：+' + m.toFixed(2) + '%（Portalのエポック報酬請求で受け取り）',
+    mirror_tip: (m) => 'MIRROR（FTSO分）の上乗せあり：+' + m.toFixed(2) + '%（Flare Portalのデリゲート画面で受け取り）',
     alert_amount: 'ステーキング数量を入力してください',
     alert_min: '委任は最低 50,000 FLR からです',
     alert_date: 'ステーキング終了日をカレンダーで選択してください',
     fail_msg: 'データの取得に失敗しました。ページをリロードして再試行してください。',
     none_msg: '条件に合うバリデータが見つかりませんでした。<br>条件を変えてお試しください。',
-    summary: (nodes,amt,dur,total,shown,all)=> nodes+'ノード中・Uptime≥99%・直近の報酬実績あり・空き≥'+amt.toLocaleString()+' FLR・残'+dur+'日以上 の条件に合致: '+total+'件。'+(shown<total?'上位'+shown+'件を表示。':'全件表示。')+' 表示APRはあなたの数量を入れた後の値です。',
+    summary: (nodes,amt,dur,end,total)=> amt.toLocaleString()+' FLR・'+dur+'日間（'+end+'まで）で検索 → '+nodes+'ノード中 '+total+'件が該当。実質APRの高い順に並べています（あなたが預けた後の値）。',
     est_label: (d) => d + '日間の見込み',
     bar_cap: '内訳',
-    leg_vrm: '基本報酬',
+    leg_vrm: 'ステーキング報酬',
     leg_mirror: 'MIRROR上乗せ',
     portal_link: 'Flare Portalを開く ↗',
-    claim_note: '💡 報酬は2か所から別々に請求します。検証報酬（VRM）はFlare Portalのステーキング画面から約14日ごと、FTSO分（MIRROR）はエポックごとの報酬請求から受け取ります。MIRRORを請求しないと、表示APRのうちMIRROR分（多くのノードで半分前後）を取り逃します。また報酬は3.5日ごとのエポック単位で計算されるため、期間が短いと見込み額より少なくなることがあります。',
+    claim_note_title: '💡 確認のポイント',
+    claim_note: '報酬は2種類に分かれます。ステーキング報酬（VRM）はFlare Portalのステーキング画面から約14日ごと、MIRROR（FTSO分）はデリゲート画面からエポックごとに受け取ります。見込み報酬はあくまで目安です。委任量やエポックのタイミングにより、見込みより少なくなることがあるので参考程度にご覧ください。',
     pill_fee: (f)=> '手数料 '+f+'%',
     pill_uptime: (u)=> '稼働率 '+u.toFixed(1)+'%',
     pill_elig: (o,n)=> '報酬実績 '+o+'/'+n,
     pill_free: (s)=> '空き '+s,
     apr_label: '実質APR',
     apr_unknown: 'APR未確定',
-    apr_tip: (v,m,d)=> '検証報酬 '+v.toFixed(2)+'% ＋ FTSO分 '+m.toFixed(2)+'%'
+    apr_tip: (v,m,d)=> 'ステーキング報酬 '+v.toFixed(2)+'% ＋ MIRROR上乗せ '+m.toFixed(2)+'%'
       + (d>0.05 ? '\n（自分の参加による希薄化 -'+d.toFixed(2)+'pt を反映済み）' : ''),
     node_label: '① コピー → ② Flare Portalの検索欄に貼り付け',
     node_full: '照合用フルID:',
@@ -333,10 +456,30 @@ const T = {
     cal_months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
     cal_dur: (d)=> ' ('+d+' days)',
     cond_title: 'Search Criteria',
-    cond_items: ['Uptime ≥ 99% and actually paid in recent epochs','Free capacity for your amount & duration','Sorted by net APR (after fees), 10 at a time'],
+    cond_items: ['Uptime ≥ 99% and actually paid in recent epochs','Free capacity for your amount and dates'],
     btn_search: 'Find validators →',
     btn_loading: 'Fetching data…',
     rt_label: 'Matching Validators',
+    tab_stake: 'Staking',
+    tab_deleg: 'Delegation',
+    catch_d: 'Delegating WFLR?<br><em>Compare</em> providers too.',
+    subtitle_d: 'Based on Flare Foundation payout records — after fees',
+    es_title: 'Enter your amount and date, then press “Find validators”. Results appear here.',
+    es_items: ['<b>Net APR</b> — annual rate after fees (after adding your stake)', '<b>Breakdown</b> — staking reward + MIRROR bonus', '<b>Estimate</b> — roughly what you receive over your dates'],
+    d_es_title: 'Enter an amount and press “Find providers”. Results appear here.',
+    d_es_items: ['<b>Net APR</b> — annual rate after fees (after adding your delegation)', '<b>Estimate</b> — roughly what you receive over 30 days', 'No lock-up — you can change providers any time'],
+    lbl_d_amount: 'Amount to delegate <span class="label-hint">wrap FLR into WFLR to delegate</span>',
+    d_cond_items: ['Actually paid in recent epochs'],
+    lbl_d_unnamed: 'Also show providers with no registered name<small>The name is not in the official data. Please verify the operator yourself.</small>',
+    d_btn: 'Find providers →',
+    d_rt_label: 'Matching Providers',
+    d_summary: (amt,total,n,stakeMed)=> amt+' WFLR → '+total+' of '+n+' providers match. Sorted by net APR, after adding your delegation. For reference, the median staking net APR is '+stakeMed+'%.',
+    d_note: 'Delegation rewards are claimed each epoch on the Flare Portal delegation page. Wrap FLR into WFLR to delegate; there is no lock-up and you can change any time. One address can split its delegation across up to two providers. Estimated rewards are only a guide.',
+    d_est_label: 'Est. over 30 days',
+    d_pill_deleg: (m)=> 'Delegated '+m,
+    d_node_label: '1. Copy → 2. Search on the Flare Portal delegation page',
+    d_data_note: (ep,date)=> 'Payouts in epoch '+ep[0]+'-'+ep[ep.length-1]+' (loaded '+date+')',
+    d_alert_amount: 'Please enter an amount to delegate',
     credit: 'Provided by <a href="https://lit.link/flarejapancommunity" target="_blank">Flare Japan Community</a>',
     data_live: (n) => 'P-Chain LIVE: ' + new Date(loadedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (' + n + ' nodes)'
       + (APR_META ? ' / Net APR: last ' + APR_META.windowDays + 'd measured (epoch ' + APR_META.epochs[0] + '-' + APR_META.epochs[APR_META.epochs.length-1] + ', loaded ' + fmtMD(APR_META.generatedAt) + ')' : ''),
@@ -345,26 +488,27 @@ const T = {
     lbl_unnamed: 'Also show nodes with no registered name<small>The operator is not on the official provider list. The same payout-history filter still applies, but please verify the operator yourself.</small>',
     unnamed_name: 'Unnamed node',
     pill_unnamed: 'Unknown operator',
-    mirror_tip: (m) => 'Earns the FTSO share (MIRROR): +' + m.toFixed(2) + '% (claimed via the per-epoch reward claim in Portal)',
+    mirror_tip: (m) => 'Earns the MIRROR bonus (FTSO share): +' + m.toFixed(2) + '% (claimed on the Flare Portal delegation page)',
     alert_amount: 'Please enter a staking amount',
     alert_min: 'The minimum delegation is 50,000 FLR',
     alert_date: 'Please select an end date from the calendar',
     fail_msg: 'Failed to fetch data. Please reload the page and try again.',
     none_msg: 'No validators found matching your criteria.<br>Try adjusting your search.',
-    summary: (nodes,amt,dur,total,shown,all)=> nodes+' nodes · Uptime≥99% · recently paid · Free≥'+amt.toLocaleString()+' FLR · '+dur+'+ days: '+total+' match.'+(shown<total?' Top '+shown+' shown.':' All shown.')+' APR shown is after adding your amount.',
+    summary: (nodes,amt,dur,end,total)=> amt.toLocaleString()+' FLR for '+dur+' days (until '+end+') → '+total+' of '+nodes+' nodes match. Sorted by net APR, after adding your stake.',
     est_label: (d) => 'Est. over ' + d + ' days',
     bar_cap: 'Breakdown',
-    leg_vrm: 'Base reward',
+    leg_vrm: 'Staking reward',
     leg_mirror: 'MIRROR bonus',
     portal_link: 'Open Flare Portal ↗',
-    claim_note: '💡 Rewards are claimed in two separate places: validation rewards (VRM) from the Flare Portal staking page about every 14 days, and the FTSO share (MIRROR) from the per-epoch reward claim. If you never claim MIRROR you lose that part of the APR (around half for many nodes). Rewards are computed per 3.5-day epoch, so short periods may earn less than estimated.',
+    claim_note_title: '💡 Before you delegate',
+    claim_note: 'Rewards come in two parts. Staking rewards (VRM) are claimed on the Flare Portal staking page about every 14 days, and MIRROR (FTSO share) on the delegation page each epoch. Estimated rewards are only a guide: depending on your amount and epoch timing, you may receive less than estimated.',
     pill_fee: (f)=> 'Fee '+f+'%',
     pill_uptime: (u)=> 'Uptime '+u.toFixed(1)+'%',
     pill_elig: (o,n)=> 'Paid '+o+'/'+n,
     pill_free: (s)=> 'Free '+s,
     apr_label: 'Net APR',
     apr_unknown: 'APR pending',
-    apr_tip: (v,m,d)=> 'Validation '+v.toFixed(2)+'% + FTSO share '+m.toFixed(2)+'%'
+    apr_tip: (v,m,d)=> 'Staking reward '+v.toFixed(2)+'% + MIRROR bonus '+m.toFixed(2)+'%'
       + (d>0.05 ? '\n(dilution from your own stake -'+d.toFixed(2)+'pt already applied)' : ''),
     node_label: '1. Copy → 2. Paste into Flare Portal search',
     node_full: 'Full ID to verify:',
@@ -391,6 +535,7 @@ function switchLang(){
   applyLang();
   // Re-render results if search was performed
   if(document.getElementById('results').classList.contains('on')) render();
+  if(document.getElementById('dResults').classList.contains('on')) renderDeleg();
   // Re-render dataDate if data was loaded
   if(NODES.length > 0) {
     document.getElementById('dataDate').textContent = T[lang].data_live(NODES.length);
@@ -401,8 +546,21 @@ function applyLang(){
   const t = T[lang];
   document.getElementById('langJA').className = lang==='ja'?'active':'';
   document.getElementById('langEN').className = lang==='en'?'active':'';
-  document.getElementById('catch').innerHTML = t.catch;
-  document.getElementById('subtitle').textContent = t.subtitle;
+  setHero();
+  document.getElementById('tabStake').innerHTML = ICON_STEAK + '<span>' + t.tab_stake + '</span>';
+  document.getElementById('tabDeleg').innerHTML = ICON_BEAR + '<span>' + t.tab_deleg + '</span>';
+  document.querySelector('#emptyState .es-mark').innerHTML = ICON_STEAK;
+  document.querySelector('#dEmptyState .es-mark').innerHTML = ICON_BEAR;
+  document.getElementById('es_title').textContent = t.es_title;
+  document.getElementById('es_list').innerHTML = t.es_items.map(i=>'<li>'+i+'</li>').join('');
+  document.getElementById('d_es_title').textContent = t.d_es_title;
+  document.getElementById('d_es_list').innerHTML = t.d_es_items.map(i=>'<li>'+i+'</li>').join('');
+  document.getElementById('lbl_d_amount').innerHTML = t.lbl_d_amount;
+  document.getElementById('d_cond_title').textContent = t.cond_title;
+  document.getElementById('d_cond_list').innerHTML = t.d_cond_items.map(i=>'<li>'+i+'</li>').join('');
+  document.getElementById('lbl_d_unnamed').innerHTML = t.lbl_d_unnamed;
+  document.getElementById('dSearchBtn').textContent = t.d_btn;
+  document.getElementById('d_rt_label').textContent = t.d_rt_label;
   document.documentElement.lang = lang;
   document.getElementById('lbl_amount').innerHTML = t.lbl_amount;
   document.getElementById('lbl_enddate').innerHTML = t.lbl_enddate;
@@ -438,6 +596,40 @@ function applyLang(){
 /* ── 実質APRデータ (build-apr.py で事前計算) + P-Chain ── */
 let NODES = [];
 let APR_META = null;
+let aprLoadedAt = 0;
+
+// ステーキング・デリゲートの両タブで使う apr.json を、5分間は使い回す
+async function loadAprData() {
+  if (APR_META && Date.now() - aprLoadedAt < CACHE_MS) return APR_META;
+  const r = await fetch(APR_DATA_URL, {cache: 'no-cache'});
+  if (!r.ok) throw new Error('APR data HTTP ' + r.status);
+  APR_META = await r.json();
+  aprLoadedAt = Date.now();
+  return APR_META;
+}
+
+function scrollToResultsIfNarrow(id) {
+  // PCでは右カラムに出るので不要。1カラムのスマホでは結果の先頭まで送る
+  if (window.innerWidth < 1024) document.getElementById(id).scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+/* ── タブ ── */
+let currentTab = 'stake';
+function setHero(){
+  const t = T[lang], d = currentTab === 'delegate';
+  document.getElementById('catch').innerHTML = d ? t.catch_d : t.catch;
+  document.getElementById('subtitle').textContent = d ? t.subtitle_d : t.subtitle;
+}
+function switchTab(name){
+  currentTab = name;
+  const d = name === 'delegate';
+  document.getElementById('paneStake').hidden = d;
+  document.getElementById('paneDeleg').hidden = !d;
+  document.getElementById('tabStake').setAttribute('aria-selected', String(!d));
+  document.getElementById('tabDeleg').setAttribute('aria-selected', String(d));
+  setHero();
+  try { history.replaceState(null, '', d ? '#delegate' : '#staking'); } catch(e) {}
+}
 
 // build-apr.py が出力した apr.json の場所。別ホストに置く場合はここを絶対URLに変える。
 const APR_DATA_URL = 'apr.json';
@@ -477,11 +669,8 @@ async function loadValidatorData() {
     /* ── Step 1: 実質APRデータを取得 ──
        Flare財団が公開する実支払記録から算出済み。委任者の手取り（手数料控除後）。
          apr = VRM(P-Chain検証報酬) + MIRROR(FTSOインフレ分)                        */
-    const aResp = await fetch(APR_DATA_URL, {cache: 'no-cache'});
-    if (!aResp.ok) throw new Error('APR data HTTP ' + aResp.status);
-    const aprData = await aResp.json();
+    const aprData = await loadAprData();
     const aprByNode = aprData.nodes || {};
-    APR_META = aprData;
     console.log('APR data: epochs', aprData.epochs, '/', Object.keys(aprByNode).length, 'nodes');
 
     /* ── Step 2: P-Chain APIからバリデータデータを取得 ── */
@@ -604,31 +793,30 @@ function renderCal(){
   document.getElementById('calDow').innerHTML = t.cal_dow.map(d=>'<span>'+d+'</span>').join('');
   const grid = document.getElementById('calGrid');
   grid.innerHTML='';
+  // 月曜始まり。前後の月の日付も埋めて、月末・月初（例: 10月表示中の11/1）も直接選べるようにする
   const first = new Date(calYear,calMonth,1);
-  // Monday=0 offset
-  let dow = first.getDay(); // 0=Sun
-  dow = dow===0?6:dow-1;    // convert to Mon=0
-  for(let i=0;i<dow;i++){
-    const e=document.createElement('div');e.className='cal-day empty';grid.appendChild(e);
-  }
+  const lead = (first.getDay()+6)%7;
   const daysInMonth = new Date(calYear,calMonth+1,0).getDate();
+  const cells = Math.ceil((lead+daysInMonth)/7)*7;
   const t0 = today(), minD = addDays(t0, MIN_DAYS), maxD = addDays(t0, MAX_DAYS);
-  for(let day=1;day<=daysInMonth;day++){
+  for(let k=0;k<cells;k++){
+    const dt=new Date(calYear,calMonth,1-lead+k);
+    const other=dt.getMonth()!==calMonth;
     const d=document.createElement('button');
-    const dt=new Date(calYear,calMonth,day);
     const isDisabled=dt<minD||dt>maxD;
     const isToday=dt.getTime()===t0.getTime();
     const isSel=selectedDate&&dt.getTime()===selectedDate.getTime();
-    d.className='cal-day'+(isDisabled?' disabled':'')+(isToday?' today':'')+(isSel?' selected':'');
-    d.textContent=day;
+    d.className='cal-day'+(other?' other':'')+(isDisabled?' disabled':'')+(isToday?' today':'')+(isSel?' selected':'');
+    d.textContent=(other&&dt.getDate()===1)?(dt.getMonth()+1)+'/1':dt.getDate();
     if(!isDisabled){
-      d.onclick=()=>selectDate(dt);
+      d.onclick=()=>{ calYear=dt.getFullYear(); calMonth=dt.getMonth(); selectDate(dt); };
     } else {
       d.disabled=true;
     }
     grid.appendChild(d);
   }
 }
+
 
 function selectDate(dt){
   selectedDate=dt;
@@ -674,6 +862,7 @@ function copyNode(text, btn){
 
 const MIN_ELIG_RATE=0.75;   // 直近エポックのうち報酬対象だった割合の下限
 const PORTAL_URL='https://portal.flare.network/staking';
+const PORTAL_ROOT='https://portal.flare.network/';
 
 async function go(){
   const amount=parseFloat(document.getElementById('amount').value);
@@ -742,6 +931,8 @@ async function go(){
   showCount = 10;
 
   render();
+  document.getElementById('emptyState').classList.add('off');
+  scrollToResultsIfNarrow('results');
 }
 
 let lastFiltered = [];
@@ -752,8 +943,9 @@ let showCount = 10;
 function renderMeta(t){
   const total = lastFiltered.length;
   const shown = Math.min(showCount, total);
+  const end = selectedDate ? (selectedDate.getMonth()+1)+'/'+selectedDate.getDate() : '';
   document.getElementById('summary').textContent=
-    t.summary(NODES.length, lastAmount, lastDuration, total, shown, total);
+    t.summary(NODES.length, lastAmount, lastDuration, end, total);
   document.getElementById('rc').textContent=t.rc(shown, total);
 }
 
@@ -809,7 +1001,7 @@ function buildCard(n, rank, delayIdx, t){
     '<span class="tag">'+esc(t.ends(n.endDate, n.minDays))+'</span>'+
     '<span class="tag '+freeCls+'">'+t.pill_free(freeDisp)+'</span>';
 
-  // 実質APRの内訳（検証報酬とMIRROR）を横棒の比率で見せる
+  // 実質APRの内訳（ステーキング報酬とMIRROR）を横棒の比率で見せる
   const total = n.vrm + n.mirrorAfter;
   const vPct = total > 0 ? (n.vrm / total * 100) : 100;
 
@@ -851,7 +1043,7 @@ function render(){
   renderMeta(t);
 
   const note=document.getElementById('claimNote');
-  note.textContent=t.claim_note;
+  note.innerHTML='<b>'+t.claim_note_title+'</b>'+esc(t.claim_note);
   note.classList.toggle('on', lastFiltered.length>0);
 
   if(!lastFiltered.length){
@@ -863,8 +1055,121 @@ function render(){
   document.getElementById('results').classList.add('on');
 }
 
+/* ── アイコン ── */
+// ステーキング: ヘッダーのロゴ（コック帽のステーキ）をそのまま使う
+const ICON_STEAK = document.querySelector('.brand .mark').outerHTML;
+// デリゲート: 投票箱に票を入れるクマ（FTSOはデータを「投票」して報酬を得る）
+const ICON_BEAR = '<svg viewBox="0 0 32 32" aria-hidden="true">'+
+  '<g fill="#FFFFFF" stroke="var(--line)" stroke-width="1.6"><circle cx="9.2" cy="6.8" r="3.2"/><circle cx="22.8" cy="6.8" r="3.2"/></g>'+
+  '<path d="M8.1 6.1a1.6 1.6 0 0 1 2.2-.2M23.9 6.1a1.6 1.6 0 0 0-2.2-.2" stroke="var(--line)" stroke-width="1" fill="none" stroke-linecap="round"/>'+
+  '<circle cx="16" cy="13.6" r="8.8" fill="#FFFFFF" stroke="var(--line)" stroke-width="1.8"/>'+
+  '<g stroke="var(--line)" stroke-width="1.25" fill="none"><rect x="9.4" y="10.6" width="5.6" height="4.2" rx="1.4"/><rect x="17" y="10.6" width="5.6" height="4.2" rx="1.4"/><path d="M15 12.1h2"/></g>'+
+  '<g fill="var(--line)"><circle cx="12.3" cy="12.8" r=".9"/><circle cx="19.7" cy="12.8" r=".9"/><ellipse cx="16" cy="16.6" rx="1.5" ry="1"/></g>'+
+  '<path d="M14.3 18.3q1.7 1.4 3.4 0" stroke="var(--line)" stroke-width="1.1" fill="none" stroke-linecap="round"/>'+
+  '<g transform="rotate(14 23.4 17.4)"><rect x="20.4" y="13.4" width="6" height="7.4" rx=".8" fill="#FFFFFF" stroke="var(--line)" stroke-width="1.3"/><path d="M21.9 17.3l1.3 1.3 2.2-2.6" stroke="#E62058" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>'+
+  '<rect x="3.5" y="21.5" width="25" height="8.8" rx="2.2" fill="#E62058" stroke="var(--line)" stroke-width="1.8"/>'+
+  '<rect x="17.2" y="20.9" width="9.4" height="1.9" rx=".9" fill="var(--line)"/>'+
+  '<ellipse cx="25.6" cy="20.6" rx="2.3" ry="1.9" fill="#FFFFFF" stroke="var(--line)" stroke-width="1.3"/>'+
+  '<path d="M8 26h3M21 26h3" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round"/>'+
+  '</svg>';
+
+/* ── デリゲート（WFLRの委任先） ── */
+let dFiltered = [], dAmount = 0, dShowCount = 10;
+
+function fmtM(m){ return m >= 1000 ? (m/1000).toFixed(2)+'B' : m >= 1 ? m.toFixed(1)+'M' : Math.round(m*1000)+'K'; }
+
+async function goDeleg(){
+  const t = T[lang];
+  const amount = parseFloat(document.getElementById('dAmount').value);
+  if (!amount || amount <= 0) { alert(t.d_alert_amount); return; }
+  const btn = document.getElementById('dSearchBtn');
+  btn.disabled = true; btn.textContent = t.btn_loading;
+  let meta;
+  try { meta = await loadAprData(); }
+  catch(e) {
+    document.getElementById('dDataNote').textContent = t.data_fail(e.message);
+    btn.disabled = false; btn.textContent = t.d_btn;
+    return;
+  }
+  btn.disabled = false; btn.textContent = t.d_btn;
+
+  const showUnnamed = document.getElementById('dShowUnnamed').checked;
+  // 自分の委任で委任総額が増えたときの薄まり。原資の連動度(弾力性)は build-apr.py が実測
+  const beta = meta.wnatElasticity != null ? meta.wnatElasticity : 0.9;
+  dFiltered = Object.entries(meta.providers || {})
+    .map(([voter, p]) => Object.assign({voter}, p))
+    .filter(p => p.observedEpochs && p.paidEpochs / p.observedEpochs >= MIN_ELIG_RATE && (showUnnamed || p.name))
+    .map(p => {
+      const W = p.delegatedM * 1e6;
+      const aprAfter = W > 0 ? p.apr * Math.pow((W + amount) / W, beta - 1) : p.apr;
+      return Object.assign(p, {aprAfter, est30: amount * aprAfter / 100 * 30 / 365});
+    })
+    .sort((a, b) => b.aprAfter - a.aprAfter || b.delegatedM - a.delegatedM);
+  dAmount = amount; dShowCount = 10;
+  document.getElementById('dDataNote').textContent = t.d_data_note(meta.epochs, fmtMD(meta.generatedAt));
+  renderDeleg();
+  document.getElementById('dEmptyState').classList.add('off');
+  scrollToResultsIfNarrow('dResults');
+}
+
+function renderDeleg(){
+  const t = T[lang];
+  const list = document.getElementById('dList');
+  list.innerHTML = '';
+  const total = dFiltered.length, shown = Math.min(dShowCount, total);
+  document.getElementById('dRc').textContent = t.rc(shown, total);
+  document.getElementById('dSummary').textContent =
+    t.d_summary(dAmount.toLocaleString(), total, Object.keys(APR_META.providers || {}).length, APR_META.medianApr.toFixed(1));
+  const note = document.getElementById('dNote');
+  note.innerHTML = '<b>'+t.claim_note_title+'</b>'+esc(t.d_note);
+  note.classList.toggle('on', total > 0);
+  if (!total) {
+    list.innerHTML = '<p class="none-msg">'+t.none_msg+'</p>';
+  } else {
+    dFiltered.slice(0, dShowCount).forEach((p, i) => list.appendChild(buildDelegCard(p, i, i, t)));
+    if (total > dShowCount) {
+      const more = document.createElement('button');
+      more.className = 'more-btn';
+      more.textContent = t.more(Math.min(total - dShowCount, 10), total - dShowCount);
+      more.onclick = () => { dShowCount += 10; renderDeleg(); };
+      list.appendChild(more);
+    }
+  }
+  document.getElementById('dResults').classList.add('on');
+}
+
+function buildDelegCard(p, rank, delayIdx, t){
+  const d = document.createElement('div');
+  d.className = 'vc' + (rank === 0 ? ' best' : '');
+  d.style.animationDelay = (delayIdx * .04) + 's';
+  const paidCls = p.paidEpochs >= p.observedEpochs ? 'tg' : 'tb';
+  const pills =
+    (p.name ? '' : '<span class="tag tu">'+t.pill_unnamed+'</span>')+
+    '<span class="tag">'+t.pill_fee(p.fee)+'</span>'+
+    '<span class="tag '+paidCls+'">'+t.pill_elig(p.paidEpochs, p.observedEpochs)+'</span>'+
+    '<span class="tag">'+t.d_pill_deleg(fmtM(p.delegatedM))+'</span>';
+  d.innerHTML =
+    '<div class="vhd"><div class="rb">'+(rank+1)+'</div>'+
+      '<div class="vname">'+esc(p.name || t.unnamed_name)+'</div></div>'+
+    '<div class="aprrow">'+
+      '<div><div class="apr num">'+p.aprAfter.toFixed(2)+'<small>%</small></div>'+
+      '<div class="apr-lbl">'+t.apr_label+'</div></div>'+
+      '<div class="est">'+t.d_est_label+'<b class="num">≈ '+Math.round(p.est30).toLocaleString()+' FLR</b></div>'+
+    '</div>'+
+    '<div class="tags">'+pills+'</div>'+
+    '<div class="node-block-label"><span>'+t.d_node_label+'</span>'+
+      '<a href="'+PORTAL_ROOT+'" target="_blank" rel="noopener">'+t.portal_link+'</a></div>'+
+    '<div class="node-id-row"><div class="node-id-text addr">'+esc(p.delegationAddress)+'</div>'+
+      '<button class="copy-btn">'+t.copy+'</button></div>';
+  const btn = d.querySelector('.copy-btn');
+  btn.addEventListener('click', () => copyNode(p.delegationAddress, btn));
+  d.querySelector('.node-id-text').addEventListener('click', () => copyNode(p.delegationAddress, btn));
+  return d;
+}
+
 /* ── Init ── */
 applyLang();
+if (location.hash === '#delegate') switchTab('delegate');
 </script>
 </body>
 </html>

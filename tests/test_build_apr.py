@@ -72,6 +72,19 @@ class MirrorElasticity(unittest.TestCase):
         self.assertNotIn("B", stake)
 
 
+class AggregateProviders(unittest.TestCase):
+    def test_apr_and_paid_epochs(self):
+        ep = lambda paid: {"v1": {"deleg": "0xd1", "w": 1_000_000.0, "fee": 20.0, "paid": paid},
+                           "v2": {"deleg": "0xd2", "w": 0.0, "fee": 10.0, "paid": 0.0}}
+        out, _ = b.aggregate_providers([ep(100.0), ep(0.0), ep(100.0), ep(100.0)], [], {"v1": "Alpha"})
+        p = out["v1"]
+        # 4エポックで 300 FLR / (委任 100万 × 4) を年率化
+        self.assertAlmostEqual(p["apr"], round(300 / 4_000_000 * 100 * b.ANNUALIZE, 3))
+        self.assertEqual((p["paidEpochs"], p["observedEpochs"]), (3, 4))
+        self.assertEqual((p["name"], p["delegationAddress"], p["fee"]), ("Alpha", "0xd1", 20.0))
+        self.assertNotIn("v2", out)  # 委任がゼロのプロバイダーは出さない
+
+
 class Unchanged(unittest.TestCase):
     def test_ignores_generated_at(self):
         a = {"generatedAt": "2026-09-25", "epochs": [1], "nodes": {"x": 1}}
