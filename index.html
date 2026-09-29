@@ -1134,7 +1134,7 @@ function buildCard(n, rank, delayIdx, t){
     (n.unnamed ? '<span class="tag tu">'+t.pill_unnamed+'</span>' : '')+
     '<span class="tag '+feeCls+'">'+t.pill_fee(n.fee)+'</span>'+
     '<span class="tag '+uptimeCls+'">'+t.pill_uptime(n.uptime)+'</span>'+
-    '<span class="tag '+eligCls+'">'+t.pill_elig(n.eligOK, n.eligOf)+'</span>'+
+    '<span class="tag '+eligCls+'">'+t.pill_elig(Number(n.eligOK), Number(n.eligOf))+'</span>'+
     '<span class="tag">'+esc(t.ends(n.endDate, n.minDays))+'</span>'+
     '<span class="tag '+freeCls+'">'+t.pill_free(freeDisp)+'</span>';
 
@@ -1262,10 +1262,11 @@ function buildDelegCard(p, rank, delayIdx, t){
   d.className = 'vc' + (rank === 0 ? ' best' : '');
   d.style.animationDelay = (delayIdx * .04) + 's';
   const paidCls = p.paidEpochs >= p.observedEpochs ? 'tg' : 'tb';
+  // apr.json 由来の値は数値に変換してから差し込む（データが壊れていてもHTMLとして解釈されないように）
   const pills =
     (p.name ? '' : '<span class="tag tu">'+t.pill_unnamed+'</span>')+
-    '<span class="tag">'+t.pill_fee(p.fee)+'</span>'+
-    '<span class="tag '+paidCls+'">'+t.pill_elig(p.paidEpochs, p.observedEpochs)+'</span>'+
+    '<span class="tag">'+t.pill_fee(Number(p.fee))+'</span>'+
+    '<span class="tag '+paidCls+'">'+t.pill_elig(Number(p.paidEpochs), Number(p.observedEpochs))+'</span>'+
     '<span class="tag">'+t.d_pill_deleg(fmtM(p.delegatedM))+'</span>';
   d.innerHTML =
     '<div class="vhd"><div class="rb">'+(rank+1)+'</div>'+

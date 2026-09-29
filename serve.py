@@ -64,11 +64,25 @@ def maybe_pull() -> None:
             log(f"更新失敗: {r.stderr.strip()[:300]}（手元のデータのまま配信します）")
 
 
+# サイトに必要なファイルだけを配信する（.git や設定ファイルを出さない）
+ALLOWED = {"/", "/index.html", "/apr.json", "/logo.svg", "/delegate-bear.svg"}
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
-        if self.path.split("?")[0] == "/apr.json":
+        path = self.path.split("?")[0].split("#")[0]
+        if path not in ALLOWED:
+            self.send_error(404)
+            return
+        if path == "/apr.json":
             maybe_pull()
         super().do_GET()
+
+    def do_HEAD(self):
+        if self.path.split("?")[0].split("#")[0] not in ALLOWED:
+            self.send_error(404)
+            return
+        super().do_HEAD()
 
     def end_headers(self):
         # 更新したHTML/JSONがブラウザのキャッシュで古いまま表示されないように

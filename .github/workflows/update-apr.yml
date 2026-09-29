@@ -15,10 +15,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pages: write
-  id-token: write
+# 権限はジョブごとに必要な分だけ与える
+permissions: {}
 
 concurrency:
   group: update-and-deploy
@@ -27,6 +25,8 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write        # apr.json のコミットに必要
     steps:
       - uses: actions/checkout@v5
 
@@ -55,6 +55,10 @@ jobs:
   deploy:
     needs: update
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write           # GitHub Pages への公開に必要
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
