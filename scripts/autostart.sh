@@ -12,7 +12,7 @@
 set -euo pipefail
 
 LABEL="io.github.takonorik.flare-stake-chef"
-REPO="https://github.com/takonorik/flare-stake-chef.git"
+REPO="https://github.com/takonorik/flr-stake-chef.git"
 APP_DIR="$HOME/Library/Application Support/FlareStakeChef"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 LOG="$HOME/Library/Logs/FlareStakeChef.log"

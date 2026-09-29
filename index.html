@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flare Stake Chef</title>
 <meta name="theme-color" content="#FFE3EB">
+<script>document.documentElement.classList.add('gate-check')</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Cg transform=%22translate(0 3)%22%3E%3Cpath d=%22M3.8 16.6C3.4 11.2 8.2 7.4 14.8 7.1 21.2 6.8 28 8.8 28.4 14.8 28.8 20.6 24.6 25.2 18 25.6 14.6 25.8 13 23.9 10.6 24.1 6.6 24.4 4.1 21.2 3.8 16.6Z%22 fill=%22%23FFD6E1%22 stroke=%22%23141016%22 stroke-width=%221.8%22 stroke-linejoin=%22round%22/%3E%3Cpath transform=%22translate(16.2 16.3) scale(.76) translate(-16.2 -16.3)%22 d=%22M3.8 16.6C3.4 11.2 8.2 7.4 14.8 7.1 21.2 6.8 28 8.8 28.4 14.8 28.8 20.6 24.6 25.2 18 25.6 14.6 25.8 13 23.9 10.6 24.1 6.6 24.4 4.1 21.2 3.8 16.6Z%22 fill=%22%23E62058%22/%3E%3Cpath d=%22M9.6 17.4 13.8 13.2M12.2 21 18.4 14.8M16.8 22.4 20.8 18.4%22 stroke=%22%23B3134A%22 stroke-width=%221.6%22 stroke-linecap=%22round%22/%3E%3C/g%3E%3Cg transform=%22rotate(14 22 7)%22%3E%3Cg fill=%22%23141016%22%3E%3Ccircle cx=%2218.6%22 cy=%226.4%22 r=%223.4%22/%3E%3Ccircle cx=%2222%22 cy=%224.4%22 r=%223.9%22/%3E%3Ccircle cx=%2225.4%22 cy=%226.4%22 r=%223.4%22/%3E%3C/g%3E%3Cg fill=%22%23FFFFFF%22%3E%3Ccircle cx=%2218.6%22 cy=%226.4%22 r=%222.5%22/%3E%3Ccircle cx=%2222%22 cy=%224.4%22 r=%223%22/%3E%3Ccircle cx=%2225.4%22 cy=%226.4%22 r=%222.5%22/%3E%3C/g%3E%3Crect x=%2217.8%22 y=%228.2%22 width=%228.4%22 height=%224.2%22 rx=%221.2%22 fill=%22%23FFFFFF%22 stroke=%22%23141016%22 stroke-width=%221.3%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -205,6 +206,21 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
 .es-mark svg{width:56px;height:56px}
 .node-id-text.addr{font-size:.78rem;letter-spacing:0;word-break:break-all}
 
+/* 限定公開のロック画面（簡易的な鍵。gate.json がある公開環境でのみ有効） */
+html.gate-check body>*:not(.gate){visibility:hidden}
+body.gated>*:not(.gate){display:none!important}
+.gate{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--hero-bg)}
+.gate[hidden]{display:none}
+.gate-card{width:100%;max-width:400px;background:var(--surface);border:2px solid var(--line);border-radius:26px;padding:26px 22px;box-shadow:6px 6px 0 var(--shadow);text-align:center}
+.gate-icons{display:flex;justify-content:center;gap:10px;margin-bottom:10px}
+.gate-icons svg{width:52px;height:52px}
+.gate-title{font-weight:900;font-size:1.2rem;margin-bottom:6px}
+.gate-text{font-size:.8rem;color:var(--muted);line-height:1.7;margin-bottom:14px}
+.gate-card input{width:100%;background:var(--field);border:2px solid transparent;border-radius:14px;padding:12px 14px;color:var(--text);font:800 1rem var(--sans);text-align:center;outline:none}
+.gate-card input:focus{border-color:var(--pink)}
+.gate-err{min-height:1.4em;margin:8px 0 0;font-size:.76rem;font-weight:700;color:var(--warn)}
+.gate-card .btn{margin-top:6px}
+
 /* footer */
 .foot{margin-top:40px;text-align:center}
 .credit{font-size:.74rem;color:var(--muted)}
@@ -231,6 +247,16 @@ label{display:block;font-size:.68rem;font-weight:800;color:var(--pink);margin-bo
 </style>
 </head>
 <body>
+<div class="gate" id="gate" hidden>
+  <form class="gate-card" id="gateForm" autocomplete="off">
+    <div class="gate-icons" id="gateIcons" aria-hidden="true"></div>
+    <p class="gate-title" id="gate_title"></p>
+    <p class="gate-text" id="gate_text"></p>
+    <input type="text" id="gateInput" autocapitalize="off" spellcheck="false">
+    <p class="gate-err" id="gateErr"></p>
+    <button class="btn" type="submit" id="gate_btn"></button>
+  </form>
+</div>
 <div class="appbar"><div class="appbar-in">
       <div class="brand">
         <svg class="mark" viewBox="0 0 32 32" width="36" height="36" aria-hidden="true"><g transform="translate(0 3)"><path d="M3.8 16.6C3.4 11.2 8.2 7.4 14.8 7.1 21.2 6.8 28 8.8 28.4 14.8 28.8 20.6 24.6 25.2 18 25.6 14.6 25.8 13 23.9 10.6 24.1 6.6 24.4 4.1 21.2 3.8 16.6Z" fill="#FFD6E1" stroke="var(--line)" stroke-width="1.8" stroke-linejoin="round"/><path transform="translate(16.2 16.3) scale(.76) translate(-16.2 -16.3)" d="M3.8 16.6C3.4 11.2 8.2 7.4 14.8 7.1 21.2 6.8 28 8.8 28.4 14.8 28.8 20.6 24.6 25.2 18 25.6 14.6 25.8 13 23.9 10.6 24.1 6.6 24.4 4.1 21.2 3.8 16.6Z" fill="#E62058"/><path d="M9.6 17.4 13.8 13.2M12.2 21 18.4 14.8M16.8 22.4 20.8 18.4" stroke="#B3134A" stroke-width="1.6" stroke-linecap="round"/></g><g transform="rotate(14 22 7)"><g fill="var(--line)"><circle cx="18.6" cy="6.4" r="3.4"/><circle cx="22" cy="4.4" r="3.9"/><circle cx="25.4" cy="6.4" r="3.4"/></g><g fill="#FFFFFF"><circle cx="18.6" cy="6.4" r="2.5"/><circle cx="22" cy="4.4" r="3"/><circle cx="25.4" cy="6.4" r="2.5"/></g><rect x="17.8" y="8.2" width="8.4" height="4.2" rx="1.2" fill="#FFFFFF" stroke="var(--line)" stroke-width="1.3"/></g></svg>
@@ -396,6 +422,11 @@ const T = {
     btn_loading: 'データ取得中…',
     rt_label: '条件に合うバリデータ',
     tab_stake: 'ステーキング',
+    gate_title: '限定公開中です',
+    gate_text: 'アクセスコードを入力してください。一度入力すると、この端末では次回から省略されます。',
+    gate_ph: 'アクセスコード',
+    gate_btn: '開く →',
+    gate_err: 'コードが違います。もう一度お試しください。',
     tab_deleg: 'デリゲート',
     catch_d: 'WFLRのデリゲート先も、<br><em>比べて選ぶ</em>。',
     subtitle_d: 'Flare公式の支払実績をもとに、手数料控除後で比較',
@@ -497,6 +528,11 @@ const T = {
     btn_loading: 'Fetching data…',
     rt_label: 'Matching Validators',
     tab_stake: 'Staking',
+    gate_title: 'Limited preview',
+    gate_text: 'Enter the access code. This device will remember it next time.',
+    gate_ph: 'Access code',
+    gate_btn: 'Open →',
+    gate_err: 'That code is not right. Try again.',
     tab_deleg: 'Delegation',
     catch_d: 'Delegating WFLR?<br><em>Compare</em> providers too.',
     subtitle_d: 'Based on Flare Foundation payout records — after fees',
@@ -591,6 +627,7 @@ function switchLang(){
   // Re-render results if search was performed
   if(document.getElementById('results').classList.contains('on')) render();
   if(document.getElementById('dResults').classList.contains('on')) renderDeleg();
+  if(!document.getElementById('gate').hidden) gateApplyLang();
   // Re-render dataDate if data was loaded
   if(NODES.length > 0) {
     document.getElementById('dataDate').textContent = T[lang].data_live(NODES.length);
@@ -1249,9 +1286,58 @@ function buildDelegCard(p, rank, delayIdx, t){
   return d;
 }
 
+/* ── 限定公開（簡易的な鍵） ──
+   公開時のデプロイで gate.json が置かれたときだけ有効。手元の serve.py では出ない。
+   コードは NFKC 正規化・前後空白除去・小文字化してから "flr-stake-chef:" を前置して SHA-256。
+   scripts/build_site.py と同じ手順でなければならない。 */
+const GATE_KEY = 'flr_gate';
+function gateNormalize(s){ return s.normalize('NFKC').trim().toLowerCase(); }
+async function sha256Hex(s){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function gateApplyLang(){
+  const t = T[lang];
+  document.getElementById('gate_title').textContent = t.gate_title;
+  document.getElementById('gate_text').textContent = t.gate_text;
+  document.getElementById('gateInput').placeholder = t.gate_ph;
+  document.getElementById('gate_btn').textContent = t.gate_btn;
+  document.getElementById('gateIcons').innerHTML = ICON_STEAK + ICON_BEAR;
+}
+async function initGate(){
+  let cfg = null;
+  try {
+    const r = await fetch('gate.json', {cache: 'no-cache'});
+    if (r.ok) cfg = await r.json();
+  } catch(e) {}
+  let saved = null;
+  try { saved = localStorage.getItem(GATE_KEY); } catch(e) {}
+  if (cfg && cfg.enabled && saved !== cfg.hash) {
+    gateApplyLang();
+    document.body.classList.add('gated');
+    document.getElementById('gate').hidden = false;
+    const input = document.getElementById('gateInput');
+    document.getElementById('gateForm').addEventListener('submit', async ev => {
+      ev.preventDefault();
+      const h = await sha256Hex(cfg.salt + gateNormalize(input.value));
+      if (h === cfg.hash) {
+        try { localStorage.setItem(GATE_KEY, h); } catch(e) {}
+        document.getElementById('gate').hidden = true;
+        document.body.classList.remove('gated');
+      } else {
+        document.getElementById('gateErr').textContent = T[lang].gate_err;
+        input.select();
+      }
+    });
+    input.focus();
+  }
+  document.documentElement.classList.remove('gate-check');
+}
+
 /* ── Init ── */
 applyLang();
 if (location.hash === '#delegate') switchTab('delegate');
+initGate();
 </script>
 </body>
 </html>

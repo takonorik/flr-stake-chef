@@ -85,6 +85,27 @@ class AggregateProviders(unittest.TestCase):
         self.assertNotIn("v2", out)  # 委任がゼロのプロバイダーは出さない
 
 
+_sspec = importlib.util.spec_from_file_location(
+    "build_site", pathlib.Path(__file__).resolve().parent.parent / "scripts" / "build_site.py")
+site = importlib.util.module_from_spec(_sspec)
+_sspec.loader.exec_module(site)
+
+
+class GateHash(unittest.TestCase):
+    # 本番のアクセスコードはここに書かない（リポジトリは公開される）
+    def test_input_variants_match(self):
+        # 全角・大文字・前後の空白は同じコードとして扱う（index.html の gateNormalize と揃える）
+        base = site.gate_hash("opensesame")
+        for v in ("OpenSesame", "  opensesame ", "ｏｐｅｎｓｅｓａｍｅ", "ＯＰＥＮＳＥＳＡＭＥ"):
+            self.assertEqual(site.gate_hash(v), base, v)
+        self.assertNotEqual(site.gate_hash("opensesame2"), base)
+
+    def test_known_value(self):
+        # ブラウザ側(crypto.subtle)と同じく「接頭辞 + 正規化したコード」の SHA-256
+        self.assertEqual(site.gate_hash("OpenSesame"),
+                         __import__("hashlib").sha256(b"flr-stake-chef:opensesame").hexdigest())
+
+
 class Unchanged(unittest.TestCase):
     def test_ignores_generated_at(self):
         a = {"generatedAt": "2026-09-25", "epochs": [1], "nodes": {"x": 1}}

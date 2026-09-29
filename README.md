@@ -7,7 +7,7 @@ Flareの委任先を、公式の支払実績から比べて選ぶためのツー
 | 🥩 **Stake Chef** | FLRのステーキング（P-Chainのバリデータ） | 数量・終了日 |
 | 🐻 **Delegate Bear** | WFLRのデリゲート（FTSOデータプロバイダー） | 数量 |
 
-> ⚠️ 開発中。まだ一般公開していません。動かし方は「ローカルで動かす」を参照。
+👉 **https://takonorik.github.io/flr-stake-chef/**（ステーキング） / [#delegate](https://takonorik.github.io/flr-stake-chef/#delegate)（デリゲート）
 
 ## 表示している「実質APR」の定義
 
@@ -86,6 +86,25 @@ WNAT報酬の請求額はFSPの手数料（delegationFeeBIPS）控除後。集�
 
 `apr.json` は新しいエポックを取り込んだときだけ更新されます（`generatedAt` = 取り込み日）。
 画面に取り込み日を表示し、8日を超えて古い場合は警告を出します。
+
+## 公開と限定公開（アクセスコード）
+
+GitHub Actions（`.github/workflows/update-apr.yml`）が毎日データを更新し、GitHub Pages に公開する。
+main へのpushや、Actions タブの「Run workflow」でも公開し直す。
+
+限定公開は **GitHub の設定だけで切り替えられる**（コードの変更は不要）。
+`Settings → Secrets and variables → Actions` で:
+
+| 設定 | 種類 | 値 |
+|---|---|---|
+| `ACCESS_CODE` | Secrets | アクセスコード（全角・大文字・前後の空白は区別しない） |
+| `ACCESS_GATE` | Variables | `on`（コードが必要） / `off`（誰でも閲覧可） |
+
+変更後すぐ反映したいときは Actions → Update data and deploy → Run workflow（押さなくても翌日の自動更新で反映）。
+一度コードを入れた端末は記憶される。コードを変えると全員に再入力を求める。
+
+> 簡易的な鍵であり、ソースや `apr.json` を直接読めば回り込める（表示データは元々すべて公開情報）。
+> 鍵がオンの間は検索エンジンに載らないよう `noindex` を付けている。
 
 ## apr.json の更新
 

@@ -1,17 +1,31 @@
-name: Update APR data
+name: Update data and deploy
 
-# Flareのリワードエポックは3.5日ごと。データ確定に少し遅れがあるので
-# 1日1回まわして、新しいエポックが出たら apr.json を更新する。
+# 1日1回 apr.json を更新し、GitHub Pages に公開する。
+# main へのpush（画面の修正など）や手動実行（Actions → Run workflow）でも公開し直す。
+#
+# 限定公開の切り替えは GitHub の設定だけで行う（コードの変更は不要）:
+#   Settings → Secrets and variables → Actions
+#     Secrets   ACCESS_CODE = アクセスコード
+#     Variables ACCESS_GATE = on / off
+#   変更後、すぐ反映したいときは Actions → このワークフロー → Run workflow
 on:
   schedule:
     - cron: "20 6 * * *"
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: update-and-deploy
+  cancel-in-progress: false
 
 jobs:
-  build:
+  update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -25,6 +39,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 build-apr.py -o apr.json
 
+      # GITHUB_TOKEN による push では、このワークフローは再度起動しない
       - name: Commit if changed
         run: |
           if git diff --quiet -- apr.json; then
@@ -36,3 +51,27 @@ jobs:
           git add apr.json
           git commit -m "chore: update apr.json ($(python3 -c "import json;d=json.load(open('apr.json'));print('epoch %d-%d' % (d['epochs'][0], d['epochs'][-1]))"))"
           git push
+
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main   # update ジョブで追加されたコミットも含めて公開する
+
+      - name: Build site
+        env:
+          ACCESS_GATE: ${{ vars.ACCESS_GATE }}
+          ACCESS_CODE: ${{ secrets.ACCESS_CODE }}
+        run: python3 scripts/build_site.py _site
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
